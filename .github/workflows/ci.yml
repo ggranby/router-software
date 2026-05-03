@@ -1,0 +1,129 @@
+name: Hornet Link CI
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'Programs/dcsbios-serial-bridge/**'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'Programs/dcsbios-serial-bridge/**'
+
+jobs:
+  # ── Windows MSVC build ─────────────────────────────────────────────────────
+  build-windows:
+    name: Build (Windows / MSVC)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure CMake
+        working-directory: Programs/dcsbios-serial-bridge
+        run: cmake -S . -B build -G "Visual Studio 17 2022" -A x64
+
+      - name: Build Release
+        working-directory: Programs/dcsbios-serial-bridge
+        run: cmake --build build --config Release
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hornet-link-windows-x64
+          path: Programs/dcsbios-serial-bridge/build/Release/hornet-link.exe
+
+  # ── Static analysis ────────────────────────────────────────────────────────
+  static-analysis:
+    name: Static Analysis (clang-tidy)
+    runs-on: windows-latest
+    needs: build-windows
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install LLVM/clang-tidy
+        run: choco install llvm -y
+
+      - name: Configure CMake with compile_commands
+        working-directory: Programs/dcsbios-serial-bridge
+        run: cmake -S . -B build-tidy -G Ninja -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+
+      - name: Run clang-tidy
+        working-directory: Programs/dcsbios-serial-bridge
+        shell: pwsh
+        run: |
+          $files = Get-ChildItem -Recurse src\*.cpp, src\*.hpp | Select-Object -ExpandProperty FullName
+          foreach ($f in $files) {
+            clang-tidy $f -p build-tidy --warnings-as-errors=* 2>&1
+          }
+        continue-on-error: true  # Advisory only for now
+
+  # ── Arduino sketch compile check ───────────────────────────────────────────
+  arduino-build:
+    name: Verify Arduino sketches (arduino-cli)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install arduino-cli
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/arduino/arduino-cli/master/install.sh | sh
+          echo "$HOME/bin" >> $GITHUB_PATH
+
+      - name: Install board cores
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install arduino:avr
+          arduino-cli core install esp32:esp32 --additional-urls https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json
+
+      - name: Install HornetLink library
+        run: |
+          mkdir -p "$HOME/Arduino/libraries/HornetLink"
+          cp -r libraries/HornetLink/. "$HOME/Arduino/libraries/HornetLink/"
+
+      - name: Compile Mega 2560 master sketch
+        run: |
+          arduino-cli compile \
+            --fqbn arduino:avr:mega \
+            sketches/sketch_mega2560_master
+
+      - name: Compile Pro Micro slave sketch
+        run: |
+          arduino-cli compile \
+            --fqbn arduino:avr:leonardo \
+            sketches/sketch_pro_micro_slave
+
+      - name: Compile ESP32 master sketch
+        run: |
+          arduino-cli compile \
+            --fqbn esp32:esp32:esp32 \
+            sketches/sketch_esp32_master
+
+  # ── Documentation build ────────────────────────────────────────────────────
+  docs:
+    name: Build Doxygen documentation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Doxygen
+        run: sudo apt-get install -y doxygen graphviz
+
+      - name: Generate docs
+        working-directory: Programs/dcsbios-serial-bridge
+        run: |
+          if [ -f Doxyfile ]; then
+            doxygen Doxyfile
+          else
+            doxygen -g Doxyfile
+            doxygen Doxyfile
+          fi
+        continue-on-error: true

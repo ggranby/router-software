@@ -1,0 +1,126 @@
+{
+  "_comment": "Built-in panel templates for OpenHornet F/A-18C Hornet Link panels.",
+  "_schema_version": "1",
+  "_note": "Address values are DCS-BIOS byte addresses (even). mask+shift isolate the field within the 16-bit word at that address.",
+
+  "panels": [
+    {
+      "id": "UIP_ABSIS",
+      "name": "UFC / ABSIS Panel",
+      "description": "Up-Front Controller — radio frequency display and COMM/AUX scratchpad",
+      "subscriptions": [
+        { "addr": 0x740A, "mask": 0x00FF, "shift": 0,  "label": "UFC_COMM1_DISPLAY" },
+        { "addr": 0x740A, "mask": 0xFF00, "shift": 8,  "label": "UFC_COMM2_DISPLAY" },
+        { "addr": 0x7406, "mask": 0xFFFF, "shift": 0,  "label": "UFC_SCRATCHPAD_NUMBER_DISPLAY" },
+        { "addr": 0x7408, "mask": 0x00FF, "shift": 0,  "label": "UFC_SCRATCHPAD_STRING_1_DISPLAY" },
+        { "addr": 0x7408, "mask": 0xFF00, "shift": 8,  "label": "UFC_SCRATCHPAD_STRING_2_DISPLAY" },
+        { "addr": 0x7400, "mask": 0x000F, "shift": 0,  "label": "UFC_OPTION_DISPLAY_1" },
+        { "addr": 0x7400, "mask": 0x00F0, "shift": 4,  "label": "UFC_OPTION_DISPLAY_2" },
+        { "addr": 0x7400, "mask": 0x0F00, "shift": 8,  "label": "UFC_OPTION_DISPLAY_3" },
+        { "addr": 0x7400, "mask": 0xF000, "shift": 12, "label": "UFC_OPTION_DISPLAY_4" },
+        { "addr": 0x7402, "mask": 0x000F, "shift": 0,  "label": "UFC_OPTION_DISPLAY_5" }
+      ]
+    },
+    {
+      "id": "MASTER_ARM",
+      "name": "Master Arm Panel",
+      "description": "Master Arm switch state and A/G fire control readiness",
+      "subscriptions": [
+        { "addr": 0x740C, "mask": 0x0003, "shift": 0, "label": "MASTER_ARM_SW" },
+        { "addr": 0x740C, "mask": 0x000C, "shift": 2, "label": "MC_ARM_SW" },
+        { "addr": 0x740C, "mask": 0x0010, "shift": 4, "label": "MASTER_MODE_AA" },
+        { "addr": 0x740C, "mask": 0x0020, "shift": 5, "label": "MASTER_MODE_AG" },
+        { "addr": 0x740C, "mask": 0x00C0, "shift": 6, "label": "FIRE_BTN_COVER" }
+      ]
+    },
+    {
+      "id": "HUD_REMOTE",
+      "name": "HUD Remote Control Panel",
+      "description": "HUD declutter, brightness, symbology mode controls",
+      "subscriptions": [
+        { "addr": 0x7512, "mask": 0x0003, "shift": 0, "label": "HUD_SYM_REJ_SW" },
+        { "addr": 0x7512, "mask": 0x000C, "shift": 2, "label": "HUD_VELOCITY_SW" },
+        { "addr": 0x7512, "mask": 0x0030, "shift": 4, "label": "HUD_ALTITUDE_SW" },
+        { "addr": 0x7512, "mask": 0x00C0, "shift": 6, "label": "HUD_BRIGHTNESS_SW" },
+        { "addr": 0x7514, "mask": 0xFFFF, "shift": 0, "label": "HUD_BRIGHTNESS_KNOB" }
+      ]
+    },
+    {
+      "id": "ENG_L_PANEL",
+      "name": "Left Engine Panel",
+      "description": "Engine throttle, RPM, TIT, FTIT gauges — left engine",
+      "subscriptions": [
+        { "addr": 0x0446, "mask": 0xFFFF, "shift": 0, "label": "ENG_L_RPM" },
+        { "addr": 0x0448, "mask": 0xFFFF, "shift": 0, "label": "ENG_L_FTIT" },
+        { "addr": 0x044A, "mask": 0xFFFF, "shift": 0, "label": "ENG_L_FF" },
+        { "addr": 0x044C, "mask": 0xFFFF, "shift": 0, "label": "ENG_L_OIL" },
+        { "addr": 0x044E, "mask": 0xFFFF, "shift": 0, "label": "ENG_L_NOZZLE" }
+      ]
+    },
+    {
+      "id": "ENG_R_PANEL",
+      "name": "Right Engine Panel",
+      "description": "RPM, TIT, FTIT gauges — right engine",
+      "subscriptions": [
+        { "addr": 0x0452, "mask": 0xFFFF, "shift": 0, "label": "ENG_R_RPM" },
+        { "addr": 0x0454, "mask": 0xFFFF, "shift": 0, "label": "ENG_R_FTIT" },
+        { "addr": 0x0456, "mask": 0xFFFF, "shift": 0, "label": "ENG_R_FF" },
+        { "addr": 0x0458, "mask": 0xFFFF, "shift": 0, "label": "ENG_R_OIL" },
+        { "addr": 0x045A, "mask": 0xFFFF, "shift": 0, "label": "ENG_R_NOZZLE" }
+      ]
+    },
+    {
+      "id": "CAUTION_PANEL",
+      "name": "Caution Advisory Panel",
+      "description": "All caution and advisory lights on the right knee panel",
+      "subscriptions": [
+        { "addr": 0x7400, "mask": 0xFFFF, "shift": 0, "label": "CAUTION_LIGHTS_WORD0" },
+        { "addr": 0x7402, "mask": 0xFFFF, "shift": 0, "label": "CAUTION_LIGHTS_WORD1" },
+        { "addr": 0x7404, "mask": 0xFFFF, "shift": 0, "label": "CAUTION_LIGHTS_WORD2" }
+      ]
+    },
+    {
+      "id": "FUEL_QTY",
+      "name": "Fuel Quantity Advisory Panel",
+      "description": "Fuel quantity displays and BINGO readout",
+      "subscriptions": [
+        { "addr": 0x04E8, "mask": 0xFFFF, "shift": 0, "label": "FUEL_L" },
+        { "addr": 0x04EA, "mask": 0xFFFF, "shift": 0, "label": "FUEL_R" },
+        { "addr": 0x04EC, "mask": 0xFFFF, "shift": 0, "label": "FUEL_TOTAL" },
+        { "addr": 0x04EE, "mask": 0xFFFF, "shift": 0, "label": "FUEL_BINGO" }
+      ]
+    },
+    {
+      "id": "BARO_ALTIMETER",
+      "name": "Barometric Altimeter",
+      "description": "Baro set and altitude readout",
+      "subscriptions": [
+        { "addr": 0x0200, "mask": 0xFFFF, "shift": 0, "label": "BARO_SET" },
+        { "addr": 0x0202, "mask": 0xFFFF, "shift": 0, "label": "BARO_ALT" }
+      ]
+    },
+    {
+      "id": "HSI_PANEL",
+      "name": "HSI / Compass Panel",
+      "description": "Heading, bearing, course select",
+      "subscriptions": [
+        { "addr": 0x0220, "mask": 0xFFFF, "shift": 0, "label": "HSI_HEADING" },
+        { "addr": 0x0222, "mask": 0xFFFF, "shift": 0, "label": "HSI_BEARING" },
+        { "addr": 0x0224, "mask": 0xFFFF, "shift": 0, "label": "HSI_CRS" },
+        { "addr": 0x0226, "mask": 0xFFFF, "shift": 0, "label": "HSI_DISTANCE" },
+        { "addr": 0x0228, "mask": 0xFFFF, "shift": 0, "label": "HSI_DESIRED_HEADING" }
+      ]
+    },
+    {
+      "id": "AUTOPILOT",
+      "name": "Autopilot Panel",
+      "description": "Autopilot engage, ATTH, BARO, RADAR altitude mode selects",
+      "subscriptions": [
+        { "addr": 0x7480, "mask": 0x0003, "shift": 0, "label": "AP_ENGAGE_SW" },
+        { "addr": 0x7480, "mask": 0x000C, "shift": 2, "label": "AP_DISENGAGE_LIGHT" },
+        { "addr": 0x7480, "mask": 0x0030, "shift": 4, "label": "AP_ALT_SW" },
+        { "addr": 0x7480, "mask": 0x00C0, "shift": 6, "label": "AP_HDG_SW" }
+      ]
+    }
+  ]
+}

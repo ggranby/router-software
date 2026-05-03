@@ -1,0 +1,182 @@
+---
+# Hornet Link — Test Plan
+# Format: structured YAML describing test suites, cases, and expected outcomes.
+# Run manually or feed to a future test harness.
+schema_version: "1"
+project: hornet-link
+
+suites:
+
+  # ─── Unit / protocol parse tests ───────────────────────────────────────────
+  - id: protocol_parse
+    name: "BiosProtocol — ExportParser"
+    description: "Verify the DCS-BIOS export byte-stream parser."
+    type: unit
+    cases:
+      - id: PP_01
+        name: "Sync detection"
+        input: "55 55 55 55"
+        expected: "onFrameSync() called once, dirty list empty"
+      - id: PP_02
+        name: "Single write record"
+        input: "55 55 55 55  00 00  02 00  AB CD"
+        expected: "stateMap[0x0000] == 0xCDAB after frame"
+      - id: PP_03
+        name: "Multi-record frame"
+        input: "55 55 55 55  02 00  04 00  11 22 33 44  10 00  02 00  FF 00"
+        expected: "stateMap[0x0002]==0x2211, stateMap[0x0004]==0x4433, stateMap[0x0010]==0x00FF"
+      - id: PP_04
+        name: "Fragmented delivery"
+        description: "Parser must handle input split across multiple recv() calls"
+        input_fragments:
+          - "55 55"
+          - "55 55 00 00"
+          - "02 00 AB CD"
+        expected: "stateMap[0x0000]==0xCDAB, dirty==[0x0000]"
+      - id: PP_05
+        name: "Spurious bytes before sync"
+        input: "DE AD BE EF  55 55 55 55  00 00  02 00  01 00"
+        expected: "stateMap[0x0000]==0x0001; no crash"
+
+  # ─── Handshake protocol tests ───────────────────────────────────────────────
+  - id: handshake
+    name: "HandshakeParser — pong frame decoding"
+    type: unit
+    cases:
+      - id: HS_01
+        name: "Standalone device pong"
+        input: "AA DE AD 02  00  07 4D 65 67 61 32 35 36  01 00  FF FF FF FF 00"
+        expected:
+          name: "Mega256"
+          role: Standalone
+          bidir: false
+          subs: [{addr: 0xFFFF, mask: 0xFFFF, shift: 0}]
+      - id: HS_02
+        name: "RS485 Master pong with two slaves"
+        input_notes: "flags=0x01, name='Master', subs=[wildcard], slave_count=2, slave_addr=1 'PanelA' 0 subs, slave_addr=2 'PanelB' 0 subs"
+        expected:
+          role: RS485Master
+          bidir: false
+          slave_count: 2
+          slaves:
+            - bus_address: 1
+              name: "PanelA"
+            - bus_address: 2
+              name: "PanelB"
+      - id: HS_03
+        name: "Bidir device pong"
+        input_notes: "flags=0x04, name='UFC', subs=[0x7406/0xFFFF/0]"
+        expected:
+          role: Standalone
+          bidir: true
+          subs: [{addr: 0x7406, mask: 0xFFFF, shift: 0}]
+      - id: HS_04
+        name: "Timeout → legacy mode"
+        description: "Device receives no pong within kHandshakeTimeout → DeviceRole::Legacy"
+        expected: "role=Legacy, wantsAll=true"
+
+  # ─── BuildDeltaFrame tests ──────────────────────────────────────────────────
+  - id: delta_frame
+    name: "BuildDeltaFrame — subscription filtering + encoding"
+    type: unit
+    cases:
+      - id: DF_01
+        name: "Wildcard subscription — all dirty addresses included"
+        setup: "device wantsAll=true, dirty=[0x0000,0x0002,0x0004]"
+        expected: "frame contains all 3 write records after sync"
+      - id: DF_02
+        name: "Filtered subscription — only matching addresses included"
+        setup: "device subs=[0x7406], dirty=[0x0000,0x7406,0x7408]"
+        expected: "frame contains only 0x7406 write record"
+      - id: DF_03
+        name: "Consecutive address merging"
+        setup: "device wantsAll=true, dirty=[0x0000,0x0002,0x0004]"
+        expected: "single write record with addr=0x0000 len=6"
+      - id: DF_04
+        name: "Non-consecutive addresses produce separate records"
+        setup: "device wantsAll=true, dirty=[0x0000,0x0004]"
+        expected: "two separate write records"
+      - id: DF_05
+        name: "Empty result when no subscribed addresses dirty"
+        setup: "device subs=[0x7406], dirty=[0x0000]"
+        expected: "returns empty vector"
+
+  # ─── RS-485 sub-bus frame tests ─────────────────────────────────────────────
+  - id: rs485_frames
+    name: "RS485Frame — encode / decode / CRC"
+    type: unit
+    cases:
+      - id: RS_01
+        name: "Encode + verify CRC round-trip"
+        input: "dst=1, src=0, payload=[0x20, 0x55, 0x55, 0x55, 0x55]"
+        expected: "verifyCrc() returns true"
+      - id: RS_02
+        name: "CRC mismatch detected"
+        input: "valid frame with last byte flipped"
+        expected: "verifyCrc() returns false"
+      - id: RS_03
+        name: "STX byte (0xFE) in payload does not corrupt framing"
+        input: "payload contains 0xFE byte"
+        expected: "frame encodes correctly (no byte stuffing needed — length-framed)"
+
+  # ─── Mode frame tests ────────────────────────────────────────────────────────
+  - id: mode_frames
+    name: "Mode broadcast — AA DE AD 04 [mode]"
+    type: unit
+    cases:
+      - id: MF_01
+        name: "SetMode(Sim) → BroadcastModeFrame writes correct bytes"
+        expected: "each open serial port receives AA DE AD 04 00"
+      - id: MF_02
+        name: "SetMode(Preflight) → bytes AA DE AD 04 01"
+        expected: "AA DE AD 04 01 on all ports"
+      - id: MF_03
+        name: "SetMode(Maintenance) → bytes AA DE AD 04 02"
+        expected: "AA DE AD 04 02 on all ports"
+      - id: MF_04
+        name: "SendImportCommand gated in non-Sim mode"
+        setup: "currentMode = Preflight"
+        expected: "sendImport() is a no-op; DCS not called"
+
+  # ─── ISimSource integration tests ────────────────────────────────────────────
+  - id: sim_source
+    name: "ISimSource — pluggable source switching"
+    type: integration
+    cases:
+      - id: SS_01
+        name: "DcsBiosSource connects and receives UDP multicast"
+        tool: Wireshark / socat replay
+        expected: "onFrameSync fires, stateMap updates"
+      - id: SS_02
+        name: "DcsDirectSource receives Lua UDP on port 42002"
+        tool: Python socket sender
+        expected: "onFrameSync fires, stateMap updates"
+      - id: SS_03
+        name: "ReplayFileSource plays back at 1× speed"
+        tool: Known binary capture file
+        expected: "frame count matches capture, timing within ±10 %"
+      - id: SS_04
+        name: "MsfsSource is a no-op stub"
+        expected: "connect() logs 'not yet implemented'; no crash"
+
+  # ─── End-to-end hardware tests ───────────────────────────────────────────────
+  - id: e2e_hardware
+    name: "End-to-End — real hardware with Arduino Mega 2560"
+    type: hardware
+    prerequisites:
+      - "Arduino Mega 2560 flashed with sketch_mega2560_master.ino"
+      - "USB connected, COM port identified"
+      - "DCS World running F/A-18C instant-action mission"
+    cases:
+      - id: E2E_01
+        name: "Handshake completes within 300 ms"
+        expected: "DeviceRole::RS485Master logged, ack sent"
+      - id: E2E_02
+        name: "UFC scratchpad updates arrive on Serial1"
+        expected: "UFC key presses in DCS change UFC_SCRATCHPAD_NUMBER_DISPLAY"
+      - id: E2E_03
+        name: "Import command from panel changes DCS cockpit state"
+        expected: "Pressing a panel button changes master-arm state in DCS"
+      - id: E2E_04
+        name: "Mode change Sim → Maintenance disables import forwarding"
+        expected: "Panel buttons send import lines but bridge does not forward to DCS"
