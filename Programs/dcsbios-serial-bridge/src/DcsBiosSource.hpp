@@ -212,7 +212,8 @@ private:
         addr.sin_family = AF_INET;
         addr.sin_port   = htons(7778);
         inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
-        if (::connect(recvSocket_, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == SOCKET_ERROR) {
+        const int connectResult = ::connect(recvSocket_, reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
+        if (connectResult != 0) {
             postLog(L"DcsBiosSource: TCP connect to 127.0.0.1:7778 failed.");
             return false;
         }
