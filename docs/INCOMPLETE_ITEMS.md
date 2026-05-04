@@ -112,16 +112,14 @@ extract it to a `static` inline helper method.
 
 ## 7. C4806 Compiler Warning
 
-**Status**: `DcsBiosSource.hpp` line ~215 produces MSVC warning C4806
-("operation involving `bool`") due to a comparison with `SOCKET_ERROR`.
+**Status**: ✅ COMPLETE — MSVC warning fixed.
 
-**What is missing**:
-- A one-line fix: either `!= 0` instead of `== SOCKET_ERROR`, or an explicit cast
-  `(int)result == SOCKET_ERROR`
-
-**Recommendation**: Open `DcsBiosSource.hpp`, find the line flagged by C4806, and
-change `== SOCKET_ERROR` to `!= 0` (both expressions are equivalent for socket
-return values on Windows).
+**What was done**:
+- Fixed three SOCKET_ERROR comparisons in `DcsBiosSource.hpp`
+- `bind()`: Changed `== SOCKET_ERROR` → `!= 0`
+- `setsockopt()`: Changed `== SOCKET_ERROR` → `!= 0`
+- `recv()`: Changed `== SOCKET_ERROR` → `< 0`
+- These are semantically equivalent but avoid signed/unsigned comparison warnings
 
 ---
 
