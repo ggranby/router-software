@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include "BiosProtocol.hpp"
 #include "DeviceRegistry.hpp"
+#include "ControlDatabase.hpp"
 #include "RS485ProtocolSpec.hpp"
 
 using namespace dcsbios;
@@ -170,6 +171,26 @@ void registerRS485FrameTests() {
 }
 
 // ============================================================================
+// ControlDatabase Tests
+// ============================================================================
+
+void registerControlDatabaseTests() {
+    auto suite = createSuite("ControlDatabase - JSON Loading");
+    
+    addTest(suite, "Empty database initialization", []() {
+        ControlDatabase db;
+        if (!db.empty()) throw std::runtime_error("Database should be empty");
+    });
+    
+    addTest(suite, "loadFromJson with nonexistent file", []() {
+        ControlDatabase db;
+        size_t loaded = db.loadFromJson("nonexistent_file_xyz123.json");
+        if (loaded != 0) throw std::runtime_error("Should return 0 for missing file");
+        if (!db.empty()) throw std::runtime_error("Database should remain empty");
+    });
+}
+
+// ============================================================================
 // Main Test Runner
 // ============================================================================
 
@@ -183,6 +204,7 @@ int main() {
     registerHandshakeTests();
     registerDeltaFrameTests();
     registerRS485FrameTests();
+    registerControlDatabaseTests();
     
     // Run all suites
     int totalPass = 0, totalFail = 0;

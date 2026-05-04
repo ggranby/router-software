@@ -105,6 +105,28 @@ public:
     }
 
     /**
+     * @brief Load control descriptors from a single JSON file.
+     *
+     * @details
+     * Appends controls from the file to the existing database (does not clear
+     * previous contents). Useful for loading DCS-BIOS control-reference JSON
+     * files incrementally or from custom paths.
+     *
+     * @param jsonPath  Absolute UTF-8 path to a DCS-BIOS `*.json` file.
+     * @return Number of controls newly loaded from this file (not counting
+     *         duplicates that were already in the database).
+     *
+     * @see load() to load all files in a directory at once.
+     */
+    size_t loadFromJson(const std::string& jsonPath) {
+        size_t sizeBefore = byId_.size();
+        try {
+            loadFile(jsonPath);
+        } catch (...) {}
+        return byId_.size() - sizeBefore;
+    }
+
+    /**
      * @brief Look up all controls whose output word is at @p byteAddr.
      *
      * Multiple controls may share an address when they occupy different bit
