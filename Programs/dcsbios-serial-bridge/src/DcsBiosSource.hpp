@@ -186,7 +186,7 @@ private:
         addr.sin_family      = AF_INET;
         addr.sin_port        = htons(5010);
         addr.sin_addr.s_addr = htonl(INADDR_ANY);
-        if (bind(recvSocket_, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) == SOCKET_ERROR) {
+        if (bind(recvSocket_, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
             postLog(L"DcsBiosSource: failed to bind UDP socket to :5010.");
             return false;
         }
@@ -194,7 +194,7 @@ private:
         inet_pton(AF_INET, "239.255.50.10", &membership.imr_multiaddr);
         membership.imr_interface.s_addr = htonl(INADDR_ANY);
         if (setsockopt(recvSocket_, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-                       reinterpret_cast<const char*>(&membership), sizeof(membership)) == SOCKET_ERROR) {
+                       reinterpret_cast<const char*>(&membership), sizeof(membership)) != 0) {
             postLog(L"DcsBiosSource: failed to join multicast group.");
             return false;
         }
@@ -256,7 +256,7 @@ private:
             int received = recv(recvSocket_, buf.data(), static_cast<int>(buf.size()), 0);
             if (!running_) break;
 
-            if (received == SOCKET_ERROR) {
+            if (received < 0) {
                 int err = WSAGetLastError();
                 if (err == WSAETIMEDOUT) continue;
                 std::wstring m = L"DcsBiosSource: socket error ";
