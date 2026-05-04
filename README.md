@@ -69,9 +69,21 @@ Located at `Programs/dcsbios-serial-bridge/quick-start.cmd`.
 It configures/builds the bridge if needed, then launches `hornet-link.exe`.
 
 Binary output:
-- `build/Release/dcsbios-serial-bridge.exe`
-- `build/package/Release/` (with bundled control reference JSON)
-- `dist/dcsbios-serial-bridge-Release.zip` (release package)
+- `build/Release/hornet-link.exe`
+- `build/package/hornet-link-Release/` (with bundled control reference JSON)
+- `dist/hornet-link-Release.zip` (release package)
+
+## GitHub Releases
+
+Tagging a version (for example `v0.1.0`) now triggers automated release packaging
+through GitHub Actions.
+
+Published assets include:
+- `hornet-link-Release.zip`
+- `hornet-link-<version>-Windows.zip` (CPack ZIP)
+- `SHA256SUMS.txt`
+
+See `docs/RELEASE_PROCESS.md` for the exact tagging and publishing flow.
 
 ### Usage
 
