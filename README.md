@@ -59,6 +59,15 @@ Or use the helper script:
 build-package.cmd
 ```
 
+For local development and first-run setup, use the one-command bootstrap launcher:
+
+```batch
+quick-start.cmd --autostart --dry-run
+```
+
+Located at `Programs/dcsbios-serial-bridge/quick-start.cmd`.
+It configures/builds the bridge if needed, then launches `hornet-link.exe`.
+
 Binary output:
 - `build/Release/dcsbios-serial-bridge.exe`
 - `build/package/Release/` (with bundled control reference JSON)
