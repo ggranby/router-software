@@ -28,7 +28,13 @@
 #include "HornetLinkImport.h"
 
 // Maximum number of slave addresses the master will probe.
-static constexpr uint8_t kHL_MaxSlaves = 16;
+static constexpr uint8_t kHL_MaxSlaves = 254;  // full RS-485 range 0x01–0xFE
+
+// How long to wait (ms) before retrying an address that did not respond.
+static constexpr uint32_t kHL_ScanRetryMs = 5000;
+
+// How often (ms) to check known-alive slaves for keep-alive purposes.
+static constexpr uint32_t kHL_KeepaliveMs = 500;
 
 class HornetLinkMaster : public HornetLinkModeHandler {
 public:
@@ -78,9 +84,12 @@ public:
 
 protected:
     void onModeChange(HornetLinkMode newMode) override {
-        // Forward mode frame to all known slaves on the bus.
-        for (uint8_t i = 0; i < slaveCount_; i++) {
-            sendBusMode(slaveAddrs_[i], static_cast<uint8_t>(newMode));
+        // Forward mode frame to all currently-alive slaves on the bus.
+        for (uint16_t addr = 1; addr <= 254; addr++) {
+            if (isAlive(static_cast<uint8_t>(addr))) {
+                sendBusMode(static_cast<uint8_t>(addr),
+                            static_cast<uint8_t>(newMode));
+            }
         }
     }
 
@@ -138,25 +147,87 @@ private:
 
     void flushToSlaves() {
         if (fwdLen_ == 0) return;
-        for (uint8_t i = 0; i < slaveCount_; i++) {
-            sendBusData(slaveAddrs_[i], fwdBuf_, static_cast<uint8_t>(fwdLen_));
+        // Iterate alive bitmap and forward to every discovered slave.
+        for (uint16_t addr = 1; addr <= 254; addr++) {
+            if (isAlive(static_cast<uint8_t>(addr))) {
+                sendBusData(static_cast<uint8_t>(addr), fwdBuf_,
+                            static_cast<uint8_t>(fwdLen_));
+            }
         }
         fwdLen_ = 0;
     }
 
     // ── RS-485 sub-bus ──────────────────────────────────
+
+    /**
+     * @brief Scan all 254 possible slave addresses and poll known-alive slaves.
+     *
+     * Strategy:
+     *  - All 254 addresses are probed on startup, one per call, in order 1–254.
+     *  - Addresses that respond are marked alive (aliveMap_ bit set).
+     *  - After the full initial sweep, dead addresses are re-probed once every
+     *    kHL_ScanRetryMs milliseconds so newly-connected slaves are discovered.
+     *  - Known-alive slaves are sent a keep-alive poll every kHL_KeepaliveMs ms.
+     */
     void pollBus() {
-        // Periodically probe for new slaves (every ~100 ms).
         uint32_t now = millis();
-        if (now - lastPollMs_ < 100) return;
+        if (now - lastPollMs_ < 20) return;   // throttle: max ~50 probes/s
         lastPollMs_ = now;
 
-        // Probe next candidate address (round-robin 1-16).
-        uint8_t addr = probeAddr_++;
-        if (probeAddr_ > kHL_MaxSlaves) probeAddr_ = 1;
+        // Advance scan cursor across all 254 addresses.
+        uint8_t addr = scanAddr_++;
+        if (scanAddr_ > 254) { scanAddr_ = 1; }
 
-        // Skip already-known slaves (already polled via data forwarding).
-        sendBusProbe(addr);
+        bool alive = isAlive(addr);
+
+        if (!alive) {
+            // Only re-probe dead addresses after the retry interval has elapsed.
+            uint32_t lastTried = lastProbeMs_[addr - 1];
+            if (now - lastTried >= kHL_ScanRetryMs) {
+                lastProbeMs_[addr - 1] = now;
+                sendBusProbe(addr);
+                // Response will be handled in readBus() → registerSlave().
+            }
+        } else {
+            // Periodically keep-alive poll known slaves.
+            if (now - lastProbeMs_[addr - 1] >= kHL_KeepaliveMs) {
+                lastProbeMs_[addr - 1] = now;
+                sendBusProbe(addr);
+            }
+        }
+    }
+
+    /**
+     * @brief Record a slave as discovered/alive on the bus.
+     * Called when a pong is received from a slave during scanning.
+     */
+    void registerSlave(uint8_t addr) {
+        if (addr == 0 || addr > 254) return;
+        aliveMap_[addr / 8] |= (1u << (addr % 8));
+    }
+
+    /**
+     * @brief Mark a slave as offline (no response to keep-alive).
+     */
+    void unregisterSlave(uint8_t addr) {
+        if (addr == 0 || addr > 254) return;
+        aliveMap_[addr / 8] &= ~(1u << (addr % 8));
+    }
+
+    /** @return True if the slave at @p addr is currently marked alive. */
+    bool isAlive(uint8_t addr) const {
+        if (addr == 0 || addr > 254) return false;
+        return (aliveMap_[addr / 8] & (1u << (addr % 8))) != 0;
+    }
+
+    /** @return The number of currently discovered (alive) slaves. */
+    uint8_t aliveCount() const {
+        uint8_t count = 0;
+        for (uint8_t i = 0; i < sizeof(aliveMap_); i++) {
+            uint8_t b = aliveMap_[i];
+            while (b) { count += (b & 1); b >>= 1; }
+        }
+        return count;
     }
 
     void sendBusProbe(uint8_t addr) {
@@ -219,8 +290,17 @@ private:
     uint16_t                 subCount_   = 0;
     uint8_t                  flags_      = 0;
     HornetLinkImport         importer_;
-    uint8_t  slaveAddrs_[kHL_MaxSlaves] = {};
-    uint8_t  slaveCount_                = 0;
-    uint8_t  probeAddr_                 = 1;
-    uint32_t lastPollMs_                = 0;
+
+    // ── Bus scan state ──────────────────────────────────
+    // Bit-map of alive slave addresses (bit N set = address N is alive).
+    // 256 bits = 32 bytes covers addresses 0x00–0xFF.
+    uint8_t  aliveMap_[32]          = {};
+    // Per-address timestamp of last probe sent (for retry / keep-alive).
+    uint32_t lastProbeMs_[254]      = {};
+    uint8_t  scanAddr_              = 1;     // cursor for full-sweep scan
+    uint32_t lastPollMs_            = 0;
+
+    // Legacy compat: keep slaveCount_ for forwardToBus() callers.
+    // Derived on demand from aliveMap_.
+    uint8_t slaveCount() const { return aliveCount(); }
 };

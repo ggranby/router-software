@@ -117,12 +117,47 @@ The bridge uses a multi-threaded architecture:
 
 Communication is thread-safe via atomic counters and message queues.
 
+## Dependencies
+
+### DCS-BIOS (Required for full cockpit data)
+
+Hornet Link relies on [DCS-BIOS](https://github.com/DCS-Skunkworks/dcs-bios) to
+receive cockpit state data from DCS World. DCS-BIOS must be installed in your DCS
+Saved Games folder for panel indicators, switches, and gauges to update.
+
+**Without DCS-BIOS installed:**
+- `HornetLinkExport.lua` falls back to a minimal synthetic heartbeat that only
+  sends aircraft altitude (address 0x0000) at ~30 Hz.
+- Panel displays and indicators will **not** update.
+- The bridge will still connect and forward frames, but panels receive no useful data.
+
+**Installation:**
+1. Download DCS-BIOS from https://github.com/DCS-Skunkworks/dcs-bios/releases
+2. Extract to `%USERPROFILE%\Saved Games\DCS\Scripts\DCS-BIOS\`
+3. Add to your `Export.lua` as described in the DCS-BIOS README.
+4. Optionally also load `HornetLinkExport.lua` for the direct UDP path to Hornet Link.
+
+> **Note:** The DCS-BIOS UDP multicast stream (239.255.50.10:5010) and the direct
+> Hornet Link UDP path (127.0.0.1:42002 via `HornetLinkExport.lua`) are both
+> supported. The direct path has lower latency but requires the Lua file installed.
+
+### Lua Exporter (`HornetLinkExport.lua`) — Optional but Recommended
+
+The included Lua exporter provides a dedicated low-latency path from DCS to Hornet Link,
+bypassing the multicast network stack. It hooks into DCS-BIOS's `ExportReceiveData`
+callback and forwards each frame directly over UDP to `127.0.0.1:42002`.
+
+- If DCS-BIOS is present, the exporter piggybacks on the DCS-BIOS stream.
+- If DCS-BIOS is **not** present, a minimal fallback frame is synthesised using
+  `LoGetSelf()` (altitude only). This is sufficient to verify connectivity but
+  not suitable for panel operation.
+
 ## Known Limitations
 
 - Windows-only (uses Windows API for COM ports and sockets)
 - Single DCS instance per bridge instance
 - No automatic reconnection to DCS on network restart (manual restart required)
-- Requires DCS-BIOS export stream (not standalone for DCS control)
+- **DCS-BIOS required** for full cockpit panel data (see Dependencies above)
 
 ## Contributing
 
