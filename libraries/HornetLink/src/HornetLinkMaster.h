@@ -129,30 +129,91 @@ private:
         return false;
     }
 
-    // Buffer incoming PC bytes and forward to slaves when a sync is detected.
-    uint8_t  fwdBuf_[256];
-    uint16_t fwdLen_  = 0;
-    uint8_t  syncBuf_[4] = {0x55, 0x55, 0x55, 0x55};
-    uint8_t  syncMatch_  = 0;
+    // ── Frame-boundary parser state ──────────────────────────────────────────
+    // DCS-BIOS export stream format:
+    //   Sync header : 0x55 0x55 0x55 0x55
+    //   Write record: ADDR_LO ADDR_HI CNT_LO CNT_HI DATA[CNT]
+    //   (one or more write records per frame, followed by the next sync)
+    //
+    // We detect the start of each new sync header and flush the accumulated
+    // prior frame to all alive RS-485 slaves at that point.
+    enum class FwdState : uint8_t { SYNC_WAIT, ADDR_LO, ADDR_HI, CNT_LO, CNT_HI, DATA };
+
+    uint8_t  fwdBuf_[512];                  // one full DCS-BIOS export frame
+    uint16_t fwdLen_      = 0;
+    FwdState fwdState_    = FwdState::SYNC_WAIT;
+    uint8_t  syncCount_   = 0;              // consecutive 0x55 bytes seen
+    uint16_t fwdDataLeft_ = 0;              // bytes remaining in current write-record
+
+    void appendFwd(uint8_t b) {
+        if (fwdLen_ < static_cast<uint16_t>(sizeof(fwdBuf_)))
+            fwdBuf_[fwdLen_++] = b;
+    }
 
     void forwardToBus(uint8_t b) {
-        // Accumulate bytes; flush to all slaves when we see a new sync header.
-        fwdBuf_[fwdLen_ % sizeof(fwdBuf_)] = b;
-        fwdLen_++;
-        // Simple heuristic: flush on each 0x55 run
-        // A more robust implementation would parse the full write-record format.
-        if (b == 0x55 && fwdLen_ > 4) {
-            flushToSlaves();
+        // Count consecutive 0x55 bytes to detect the 4-byte DCS-BIOS sync header.
+        syncCount_ = (b == 0x55) ? (syncCount_ + 1) : 0;
+
+        if (syncCount_ == 4) {
+            // New frame start detected.  The 3 sync bytes before this one were
+            // already appended in prior calls — strip them from the prior frame.
+            if (fwdLen_ >= 3) fwdLen_ -= 3;
+            if (fwdLen_ > 0) flushToSlaves();
+            fwdLen_ = 0;
+
+            // Prime buffer with the full 4-byte sync header.
+            fwdBuf_[0] = fwdBuf_[1] = fwdBuf_[2] = fwdBuf_[3] = 0x55;
+            fwdLen_      = 4;
+            fwdState_    = FwdState::ADDR_LO;
+            fwdDataLeft_ = 0;
+            syncCount_   = 0;
+            return;
+        }
+
+        appendFwd(b);
+
+        switch (fwdState_) {
+        case FwdState::SYNC_WAIT:
+            // Still searching for the first sync — nothing else to do.
+            break;
+        case FwdState::ADDR_LO:
+            fwdState_ = FwdState::ADDR_HI;
+            break;
+        case FwdState::ADDR_HI:
+            fwdState_ = FwdState::CNT_LO;
+            break;
+        case FwdState::CNT_LO:
+            fwdDataLeft_  = b;
+            fwdState_     = FwdState::CNT_HI;
+            break;
+        case FwdState::CNT_HI:
+            fwdDataLeft_ |= static_cast<uint16_t>(b) << 8;
+            fwdState_     = (fwdDataLeft_ == 0) ? FwdState::ADDR_LO : FwdState::DATA;
+            break;
+        case FwdState::DATA:
+            if (--fwdDataLeft_ == 0)
+                fwdState_ = FwdState::ADDR_LO;
+            break;
         }
     }
 
     void flushToSlaves() {
         if (fwdLen_ == 0) return;
-        // Iterate alive bitmap and forward to every discovered slave.
+        // Iterate alive bitmap and forward the complete frame to every discovered slave.
         for (uint16_t addr = 1; addr <= 254; addr++) {
             if (isAlive(static_cast<uint8_t>(addr))) {
-                sendBusData(static_cast<uint8_t>(addr), fwdBuf_,
-                            static_cast<uint8_t>(fwdLen_));
+                // sendBusData prepends one type byte before writeBusFrame (uint8_t len),
+                // so cap each chunk at 254 data bytes to avoid uint8_t overflow.
+                uint16_t remaining = fwdLen_;
+                uint16_t offset    = 0;
+                while (remaining > 0) {
+                    uint8_t chunk = static_cast<uint8_t>(
+                        remaining > 254 ? 254 : remaining);
+                    sendBusData(static_cast<uint8_t>(addr),
+                                fwdBuf_ + offset, chunk);
+                    offset    += chunk;
+                    remaining -= chunk;
+                }
             }
         }
         fwdLen_ = 0;

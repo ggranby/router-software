@@ -227,6 +227,10 @@ std::wstring Trim(const std::wstring& input) {
     return input.substr(start, end - start);
 }
 
+// Forward declarations for helpers used by config functions below.
+std::vector<int> ParsePorts(const std::wstring& raw);
+std::wstring     JoinPorts(const std::vector<int>& ports);
+
 std::vector<int> ParsePorts(const std::wstring& raw) {
     std::wstring s = raw;
     std::replace(s.begin(), s.end(), L';', L',');
@@ -270,6 +274,58 @@ StartupOptions ParseStartupOptions() {
     }
     LocalFree(argv);
     return opt;
+}
+
+// ─── Saved config (hornet-link.ini beside the executable) ─────────────────────
+
+/// Returns the full path to `hornet-link.ini` placed next to the executable.
+static std::wstring GetConfigFilePath() {
+    wchar_t exePath[MAX_PATH] = {};
+    GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+    std::wstring path(exePath);
+    size_t slash = path.find_last_of(L"\\/");
+    if (slash != std::wstring::npos)
+        path.resize(slash + 1);
+    path += L"hornet-link.ini";
+    return path;
+}
+
+static constexpr wchar_t kIniSection[] = L"HornetLink";
+
+/**
+ * @brief Load persisted settings into @p opts, skipping any field already set
+ *        by a command-line argument.  No-op if the INI file does not exist yet.
+ */
+static void LoadSavedConfig(StartupOptions& opts) {
+    std::wstring ini = GetConfigFilePath();
+    if (GetFileAttributesW(ini.c_str()) == INVALID_FILE_ATTRIBUTES) return; // first run
+
+    if (!opts.ports.has_value()) {
+        wchar_t buf[256] = {};
+        GetPrivateProfileStringW(kIniSection, L"ports", L"", buf, 256, ini.c_str());
+        auto p = ParsePorts(buf);
+        if (!p.empty()) opts.ports = std::move(p);
+    }
+
+    if (!opts.forceUdp.has_value()) {
+        int src = GetPrivateProfileIntW(kIniSection, L"source", -1, ini.c_str());
+        if (src == 1) opts.forceUdp = true;  // DCS-BIOS UDP
+        if (src == 2) opts.forceUdp = false; // DCS-BIOS TCP
+        // 0 (DcsDirect) and other values leave forceUdp unset so the combo default wins
+    }
+}
+
+/**
+ * @brief Persist the settings from a successfully-started session so they are
+ *        pre-filled on the next launch.
+ */
+static void SaveCurrentConfig(const BridgeConfig& cfg) {
+    std::wstring ini = GetConfigFilePath();
+    WritePrivateProfileStringW(kIniSection, L"ports",
+        JoinPorts(cfg.comPorts).c_str(), ini.c_str());
+    wchar_t srcBuf[8] = {};
+    swprintf_s(srcBuf, L"%d", static_cast<int>(cfg.sourceType));
+    WritePrivateProfileStringW(kIniSection, L"source", srcBuf, ini.c_str());
 }
 
 std::vector<int> DetectAvailableComPorts() {
@@ -1688,6 +1744,7 @@ void ToggleBridge(HWND hwnd) {
 
     if (!s->controller->Start(cfg)) { SetStatus(s, L"Start failed"); return; }
 
+    SaveCurrentConfig(cfg);  // persist ports + source for next launch
     ResetUiMetrics(s);
     SetWindowTextW(s->toggleButton, L"Stop");
     std::wstring status;
@@ -2073,6 +2130,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
  */
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow) {
     StartupOptions opts = ParseStartupOptions();
+    LoadSavedConfig(opts);  // pre-fill any field not already set from the command line
 
     const wchar_t kClass[] = L"HornetLinkWindow";
     WNDCLASSW wc = {};
