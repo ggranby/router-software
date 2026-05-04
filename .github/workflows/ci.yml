@@ -90,22 +90,28 @@ jobs:
 
       - name: Compile Mega 2560 master sketch
         run: |
+          HL_INC="-I$GITHUB_WORKSPACE/libraries/HornetLink -I$GITHUB_WORKSPACE/libraries/HornetLink/src"
           arduino-cli compile \
-            --library "$GITHUB_WORKSPACE/libraries/HornetLink" \
+            --libraries "$GITHUB_WORKSPACE/libraries" \
+            --build-property "compiler.cpp.extra_flags=$HL_INC" \
             --fqbn arduino:avr:mega \
             sketches/sketch_mega2560_master
 
       - name: Compile Pro Micro slave sketch
         run: |
+          HL_INC="-I$GITHUB_WORKSPACE/libraries/HornetLink -I$GITHUB_WORKSPACE/libraries/HornetLink/src"
           arduino-cli compile \
-            --library "$GITHUB_WORKSPACE/libraries/HornetLink" \
+            --libraries "$GITHUB_WORKSPACE/libraries" \
+            --build-property "compiler.cpp.extra_flags=$HL_INC" \
             --fqbn arduino:avr:leonardo \
             sketches/sketch_pro_micro_slave
 
       - name: Compile ESP32 master sketch
         run: |
+          HL_INC="-I$GITHUB_WORKSPACE/libraries/HornetLink -I$GITHUB_WORKSPACE/libraries/HornetLink/src"
           arduino-cli compile \
-            --library "$GITHUB_WORKSPACE/libraries/HornetLink" \
+            --libraries "$GITHUB_WORKSPACE/libraries" \
+            --build-property "compiler.cpp.extra_flags=$HL_INC" \
             --fqbn esp32:esp32:esp32 \
             sketches/sketch_esp32_master
 
