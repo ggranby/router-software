@@ -33,3 +33,11 @@ target_link_libraries(hornet-link PRIVATE
 if(MSVC)
     target_compile_options(hornet-link PRIVATE /W4 /permissive-)
 endif()
+
+# Copy seed configuration files to build directory
+add_custom_command(TARGET hornet-link POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/device_profiles.json
+        $<TARGET_FILE_DIR:hornet-link>/device_profiles.json
+    COMMENT "Copying device_profiles.json to build output directory"
+)
