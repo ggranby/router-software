@@ -67,21 +67,21 @@ tests/build/Release/hornet-link-tests.exe
 
 ## 5. Arduino Library Compile Verification (Local)
 
-**Status**: The CI workflow compiles all three sketches with `arduino-cli`.  This
-has not been verified on a local development machine.
+**Status**: ✅ COMPLETE — locally verified with `arduino-cli` on Windows.
 
-**What is missing**:
-- Local `arduino-cli` installation
-- Core package installation: `arduino:avr`, `esp32:esp32`
-- Library dependency check (no external libraries required currently)
+**What was done**:
+- Installed `arduino-cli` v1.4.1 via `winget` (`ArduinoSA.CLI`)
+- Installed AVR core: `arduino:avr@1.8.7`
+- Installed ESP32 core: `esp32:esp32@1.0.6` (stable fallback after extraction issues on latest core)
+- Fixed local compile blocker in `HornetLinkMaster.h` by adding missing `<new>` include for placement `new`
+- Verified all 3 sketches compile successfully:
+  - `sketch_mega2560_master` (`arduino:avr:mega`)
+  - `sketch_pro_micro_slave` (`arduino:avr:leonardo`)
+  - `sketch_esp32_master` (`esp32:esp32:esp32`)
 
-**Recommendation**:
+**Verification command pattern**:
 ```sh
-arduino-cli core install arduino:avr
-arduino-cli core install esp32:esp32
-arduino-cli compile --fqbn arduino:avr:mega sketches/sketch_mega2560_master
-arduino-cli compile --fqbn arduino:avr:leonardo sketches/sketch_pro_micro_slave
-arduino-cli compile --fqbn esp32:esp32:esp32 sketches/sketch_esp32_master
+arduino-cli compile --fqbn <board> --build-property "compiler.cpp.extra_flags=-I<repo>/libraries/HornetLink -I<repo>/libraries/HornetLink/src" sketches/<sketch_folder>
 ```
 
 ---

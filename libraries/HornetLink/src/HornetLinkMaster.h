@@ -23,6 +23,7 @@
  */
 
 #pragma once
+#include <new>
 #include "HornetLinkBase.h"
 #include "HornetLinkMode.h"
 #include "HornetLinkImport.h"
