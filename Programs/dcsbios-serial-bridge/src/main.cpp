@@ -509,6 +509,7 @@ public:
         std::string jsonDir = config.jsonDir.empty() ? FindJsonDir() : config.jsonDir;
         if (!jsonDir.empty()) {
             size_t n = controlDb_.load(jsonDir, "FA-18C_hornet");
+            loadedControlCount_ = n;
             if (n > 0) {
                 std::wstringstream m;
                 m << L"Control database (FA-18C_hornet): " << n << L" controls loaded.";
@@ -517,6 +518,7 @@ public:
                 PostLog(hwnd_, L"Control database: no JSON found (state-change labels disabled).");
             }
         } else {
+            loadedControlCount_ = 0;
             PostLog(hwnd_, L"Control database path not found (state-change labels disabled).");
         }
 
@@ -570,10 +572,13 @@ public:
         }
 
         running_ = true;
+        startedAt_ = std::chrono::steady_clock::now();
+        firstFrameNoticeSent_ = false;
         frameCounter_ = 0;
         dispatchFramesWithWrites_ = 0;
         dispatchMetrics_.reset();
         portWriteMetrics_.reset();
+        PostStartupReadinessSummary();
         PostLog(hwnd_, L"Bridge started.");
         return true;
     }
@@ -977,6 +982,15 @@ private:
         ++frameCounter_;
         uint64_t fc = frameCounter_.load();
 
+        if (!firstFrameNoticeSent_.exchange(true)) {
+            auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::steady_clock::now() - startedAt_).count();
+            std::wstringstream firstFrameMsg;
+            firstFrameMsg << L"Source data check: first export frame received after "
+                          << elapsedMs << L" ms.";
+            PostLog(hwnd_, firstFrameMsg.str());
+        }
+
         uint64_t portWritesThisFrame = DispatchDeltaFrames(dirty);
         UpdateDispatchMetrics(portWritesThisFrame);
         LogStateChanges(dirty);
@@ -1189,6 +1203,79 @@ private:
      * `kBridgeStoppedMessage` is posted to the UI window.
      */
     // ── Members ──────────────────────────────────────────────────────────────
+
+    const wchar_t* SourceTypeToText(SimSourceType sourceType) const {
+        switch (sourceType) {
+        case SimSourceType::DcsDirect:  return L"DCS Lua direct (127.0.0.1:42002)";
+        case SimSourceType::DcsBiosUdp: return L"DCS-BIOS UDP multicast (239.255.50.10:5010)";
+        case SimSourceType::DcsBiosTcp: return L"DCS-BIOS TCP (127.0.0.1:7778)";
+        case SimSourceType::ReplayFile: return L"Replay file";
+        case SimSourceType::Msfs:       return L"MSFS (stub)";
+        default:                        return L"Unknown";
+        }
+    }
+
+    void PostStartupReadinessSummary() {
+        size_t bidirCount = 0;
+        size_t legacyCount = 0;
+        size_t masterCount = 0;
+        size_t slaveCount = 0;
+        size_t downstreamSlaveCount = 0;
+
+        for (const auto& serialPort : ports_) {
+            if (!serialPort) continue;
+            if (serialPort->info.bidir) ++bidirCount;
+
+            switch (serialPort->info.role) {
+            case DeviceRole::Legacy:
+                ++legacyCount;
+                break;
+            case DeviceRole::RS485Master:
+                ++masterCount;
+                downstreamSlaveCount += serialPort->info.slaves.size();
+                break;
+            case DeviceRole::RS485Slave:
+                ++slaveCount;
+                break;
+            default:
+                break;
+            }
+        }
+
+        PostLog(hwnd_, L"=== Startup Readiness ===");
+
+        std::wstringstream sourceLine;
+        sourceLine << L"Source: " << SourceTypeToText(config_.sourceType)
+                   << L" [connected=" << (source_ && source_->isConnected() ? L"yes" : L"no") << L"]";
+        PostLog(hwnd_, sourceLine.str());
+
+        if (config_.sourceType == SimSourceType::DcsDirect) {
+            PostLog(hwnd_, L"Source data check: waiting for first Lua export frame...");
+        } else if (config_.sourceType == SimSourceType::DcsBiosUdp ||
+                   config_.sourceType == SimSourceType::DcsBiosTcp) {
+            PostLog(hwnd_, L"Source data check: waiting for first DCS-BIOS frame...");
+        }
+
+        std::wstringstream controlsLine;
+        controlsLine << L"Control database: " << loadedControlCount_
+                     << L" controls loaded";
+        PostLog(hwnd_, controlsLine.str());
+
+        std::wstringstream comLine;
+        comLine << L"COM ports: opened " << ports_.size()
+                << L" / requested " << config_.comPorts.size()
+                << L" [bidir=" << bidirCount << L", legacy=" << legacyCount << L"]";
+        PostLog(hwnd_, comLine.str());
+
+        std::wstringstream rs485Line;
+        rs485Line << L"RS-485 topology: masters=" << masterCount
+                  << L", slaves=" << slaveCount
+                  << L", downstream slaves declared=" << downstreamSlaveCount;
+        PostLog(hwnd_, rs485Line.str());
+
+        PostLog(hwnd_, L"=========================");
+    }
+
     HWND  hwnd_                 = nullptr;         ///< Owner window for PostLog() and PostMessage()
     BridgeConfig                config_;           ///< Current run configuration snapshot
     BiosStateMap                stateMap_;         ///< 64 KB live DCS cockpit state
@@ -1207,6 +1294,9 @@ private:
     bool                        logStateChangesArmedNoticeSent_ = false; ///< Prevents repeat arm-notice logs
     std::unordered_map<std::string, uint32_t> lastLoggedValues_; ///< Previous value cache for delta detection
     BridgeMode                  currentMode_{BridgeMode::Sim};    ///< Current hub operating mode
+    size_t                      loadedControlCount_ = 0;          ///< Number of control descriptors loaded at Start()
+    std::chrono::steady_clock::time_point startedAt_ = std::chrono::steady_clock::now(); ///< Session start time
+    std::atomic<bool>           firstFrameNoticeSent_{false};     ///< Ensures first-frame readiness line is emitted once
 
     // Live-updatable logging flags (written by UI thread, read by worker thread)
     std::atomic<bool> liveLogChanges_{false};     ///< Current effective state of logStateChanges_
