@@ -29,5 +29,7 @@ Thumbs.db
 *.swp
 *~
 
-# Device profiles (user-specific)
-device_profiles.json
+# Device profiles (user-specific, but allow seed)
+/device_profiles.json
+Programs/dcsbios-serial-bridge/build/Release/device_profiles.json
+
