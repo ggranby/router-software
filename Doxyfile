@@ -1,0 +1,20 @@
+PROJECT_NAME           = "Hornet Link"
+PROJECT_NUMBER         = "1.0.0"
+PROJECT_BRIEF          = "Win32 DCS/MSFS cockpit panel bridge with RS-485 sub-bus"
+OUTPUT_DIRECTORY       = docs/doxygen
+DOXYFILE_ENCODING      = UTF-8
+INPUT                  = Programs/dcsbios-serial-bridge/src libraries/HornetLink/src
+RECURSIVE              = YES
+FILE_PATTERNS          = *.hpp *.h *.cpp
+EXTENSION_MAPPING      = hpp=C++
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = NO
+EXTRACT_STATIC         = YES
+GENERATE_HTML          = YES
+GENERATE_LATEX         = NO
+GENERATE_MAN           = NO
+QUIET                  = NO
+WARNINGS               = YES
+WARN_IF_UNDOCUMENTED   = YES
+MARKDOWN_SUPPORT       = YES
+SOURCE_BROWSER         = YES

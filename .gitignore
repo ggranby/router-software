@@ -1,0 +1,33 @@
+# Build artifacts
+Programs/dcsbios-serial-bridge/build/
+*.o
+*.a
+*.lib
+*.dll
+*.exe
+*.pdb
+
+# IDE
+.vs/
+.vscode/
+*.vcxproj.user
+CMakeSettings.json
+
+# CMake
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+CTestTestfile.cmake
+
+# Generated documentation
+docs/doxygen/
+doxygen-output.log
+
+# OS specific
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Device profiles (user-specific)
+device_profiles.json
