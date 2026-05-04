@@ -88,16 +88,13 @@ arduino-cli compile --fqbn esp32:esp32:esp32 sketches/sketch_esp32_master
 
 ## 6. HornetLinkMaster Lambda CRC
 
-**Status**: `HornetLinkMaster.h` uses a C++14 lambda inside a member initializer.
-This may not compile on older MSVC versions if the library is ever used in a
-non-Arduino context (e.g. via PlatformIO on MSVC).
+**Status**: ✅ COMPLETE — lambda replaced with a static inline helper.
 
-**What is missing**:
-- A verification compile on PlatformIO + MSVC toolchain
-- Possibly replacing the lambda with a plain inline member function
-
-**Recommendation**: Test via PlatformIO; if the lambda causes a C2975 error,
-extract it to a `static` inline helper method.
+**What was done**:
+- Extracted the inline CRC-extending lambda from `writeBusFrame()` into a
+  `static` private method `crc16Extend(uint16_t crc, const uint8_t* data, uint8_t len)`
+- Method is C++11 compatible; no lambda, no closure, no MSVC C2975 risk
+- `writeBusFrame()` now calls `crc16Extend()` directly
 
 ---
 

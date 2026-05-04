@@ -248,6 +248,16 @@ private:
         writeBusFrame(addr, payload, 2);
     }
 
+    /** @brief Extend a running CRC-16/CCITT-FALSE over a byte buffer. */
+    static uint16_t crc16Extend(uint16_t crc, const uint8_t* data, uint8_t len) {
+        for (uint8_t i = 0; i < len; i++) {
+            crc ^= static_cast<uint16_t>(data[i]) << 8;
+            for (uint8_t b = 0; b < 8; b++)
+                crc = (crc & 0x8000u) ? ((crc << 1) ^ 0x1021u) : (crc << 1);
+        }
+        return crc;
+    }
+
     /**
      * @brief Write one RS-485 sub-bus frame.
      * Frame: [STX][dst][src=0][len_lo][len_hi][payload...][crc_lo][crc_hi]
@@ -258,16 +268,8 @@ private:
             static_cast<uint8_t>(payloadLen & 0xFF),
             static_cast<uint8_t>((payloadLen >> 8) & 0xFF)
         };
-        uint16_t crc = hl_crc16(header + 1, 4); // crc over dst,src,len
-        crc = /* extend over payload */ [&]() -> uint16_t {
-            uint16_t c = crc;
-            for (uint8_t i = 0; i < payloadLen; i++) {
-                c ^= static_cast<uint16_t>(payload[i]) << 8;
-                for (uint8_t b = 0; b < 8; b++)
-                    c = (c & 0x8000) ? ((c << 1) ^ 0x1021) : (c << 1);
-            }
-            return c;
-        }();
+        uint16_t crc = hl_crc16(header + 1, 4);       // crc over dst,src,len
+        crc = crc16Extend(crc, payload, payloadLen);   // extend over payload
 
         // Switch to TX
         digitalWrite(dirPin_, HIGH);
