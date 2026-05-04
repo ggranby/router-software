@@ -62,7 +62,7 @@ without taking on MSFS integration work yet.
 5. First-run config generation with saved defaults
 6. Profile UX improvements (auto-map known panel names, suggest defaults for unknown devices)
 7. Operator-grade observability (rolling logs, key event markers)
-8. Regression tests for discovery, framing, and profile fallback behavior
+8. ✅ Regression tests for discovery, framing, and profile fallback behavior
 
 ---
 
