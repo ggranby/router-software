@@ -29,6 +29,18 @@ Or use the helper script:
 build-package.cmd
 ```
 
+Installer/package helper (CPack):
+
+```bat
+make-installer.cmd ZIP
+```
+
+If NSIS is installed, you can also generate a Windows installer:
+
+```bat
+make-installer.cmd NSIS
+```
+
 Optional configuration argument:
 
 ```bat
@@ -36,10 +48,38 @@ build-package.cmd Debug
 ```
 
 Binary output:
-- `build/Release/dcsbios-serial-bridge.exe`
-- `build/package/Release/dcsbios-serial-bridge.exe`
-- `build/package/Release/json/` (bundled DCS-BIOS control database)
-- `dist/dcsbios-serial-bridge-Release.zip` (from helper script, contains the exe and `json/` beside it)
+- `build/Release/hornet-link.exe`
+- `build/package/hornet-link-Release/hornet-link.exe`
+- `build/package/hornet-link-Release/json/` (bundled DCS-BIOS control database when found)
+- `dist/hornet-link-Release.zip` (from helper script)
+
+Release package contents currently include:
+- `hornet-link.exe`
+- `device_profiles.json`
+- `quick-start.cmd`
+- `README.md`
+- `LICENSE` (when available)
+- `json/` control database folder (when found)
+
+## Optional Dear ImGui Prototype
+
+The current production UI is Win32. An optional Dear ImGui prototype target is
+available for migration work.
+
+```bat
+setup-imgui.cmd
+cmake -S . -B build -DHORNET_LINK_ENABLE_IMGUI=ON
+cmake --build build --config Release --target hornet-link-imgui
+```
+
+Or via helper:
+
+```bat
+quick-start.cmd --imgui
+```
+
+ImGui prototype output:
+- `build/Release/hornet-link-imgui.exe`
 
 ## Runtime defaults
 
@@ -56,6 +96,7 @@ Binary output:
 - `--tcp` forces TCP mode
 - `--ports=3,4,5` preloads COM port list
 - `--dry-run` receives network data and logs packet flow without opening/writing COM ports
+- `--imgui` (quick-start only) builds/launches the optional Dear ImGui prototype target
 - positional argument `3` is treated as legacy single COM selection compatibility
 
 ## Notes
