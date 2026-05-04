@@ -84,26 +84,28 @@ jobs:
           arduino-cli core install arduino:avr
           arduino-cli core install esp32:esp32 --additional-urls "$ESP32_URL"
 
-      - name: Install HornetLink library
+      - name: Verify HornetLink library path
         run: |
-          mkdir -p "$HOME/Arduino/libraries/HornetLink"
-          cp -r libraries/HornetLink/. "$HOME/Arduino/libraries/HornetLink/"
+          test -f "$GITHUB_WORKSPACE/libraries/HornetLink/HornetLink.h"
 
       - name: Compile Mega 2560 master sketch
         run: |
           arduino-cli compile \
+            --library "$GITHUB_WORKSPACE/libraries/HornetLink" \
             --fqbn arduino:avr:mega \
             sketches/sketch_mega2560_master
 
       - name: Compile Pro Micro slave sketch
         run: |
           arduino-cli compile \
+            --library "$GITHUB_WORKSPACE/libraries/HornetLink" \
             --fqbn arduino:avr:leonardo \
             sketches/sketch_pro_micro_slave
 
       - name: Compile ESP32 master sketch
         run: |
           arduino-cli compile \
+            --library "$GITHUB_WORKSPACE/libraries/HornetLink" \
             --fqbn esp32:esp32:esp32 \
             sketches/sketch_esp32_master
 
