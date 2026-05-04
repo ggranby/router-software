@@ -37,6 +37,10 @@ static constexpr uint32_t kHL_ScanRetryMs = 5000;
 // How often (ms) to check known-alive slaves for keep-alive purposes.
 static constexpr uint32_t kHL_KeepaliveMs = 500;
 
+// How long (ms) after the last probe-ack before a known-alive slave is
+// considered offline (must be > kHL_KeepaliveMs * miss count tolerated).
+static constexpr uint32_t kHL_OfflineTimeoutMs = 3000;
+
 class HornetLinkMaster : public HornetLinkModeHandler {
 public:
     /**
@@ -75,6 +79,7 @@ public:
     void update() {
         if (!pc_) return;
         readPc();
+        readBus();
         pollBus();
     }
 
@@ -251,11 +256,112 @@ private:
                 // Response will be handled in readBus() → registerSlave().
             }
         } else {
+            // Offline detection: drop slave if ack has not been seen recently.
+            if (now - lastAckMs_[addr - 1] >= kHL_OfflineTimeoutMs) {
+                unregisterSlave(addr);
+                return;  // skip keepalive — will be re-probed next kHL_ScanRetryMs
+            }
             // Periodically keep-alive poll known slaves.
             if (now - lastProbeMs_[addr - 1] >= kHL_KeepaliveMs) {
                 lastProbeMs_[addr - 1] = now;
                 sendBusProbe(addr);
             }
+        }
+    }
+
+    // ── RS-485 bus reader ──────────────────────────────────────────────────────
+    // Minimal frame parser for slave → master responses.
+    // Frame: [STX=0xFE][dst][src][len_lo][len_hi][payload...][crc_lo][crc_hi]
+    // We only need to handle:
+    //   kRS485_PROBE_ACK (0x11) — slave responded to a probe
+    //   kRS485_IMPORT    (0x30) — slave relaying an import line to the PC
+    //   kRS485_MODE_ACK  (0x41) — slave acknowledged a mode change
+    enum class BusRxState : uint8_t {
+        IDLE, DST, SRC, LEN_LO, LEN_HI, PAYLOAD, CRC_LO, CRC_HI
+    };
+    BusRxState busRxState_  = BusRxState::IDLE;
+    uint8_t    busRxDst_    = 0;
+    uint8_t    busRxSrc_    = 0;
+    uint16_t   busRxLen_    = 0;
+    uint16_t   busRxLeft_   = 0;
+    uint8_t    busRxBuf_[64];   // large enough for probe-ack + short imports
+    uint8_t    busRxBufPos_ = 0;
+    uint16_t   busRxCrcRun_ = 0;
+    uint8_t    busRxCrcLo_  = 0;
+
+    void readBus() {
+        while (bus_.available()) {
+            uint8_t b = static_cast<uint8_t>(bus_.read());
+            switch (busRxState_) {
+            case BusRxState::IDLE:
+                if (b == kRS485_STX) busRxState_ = BusRxState::DST;
+                break;
+            case BusRxState::DST:
+                busRxDst_    = b;
+                busRxCrcRun_ = hl_crc16(&b, 1);  // CRC starts at dst
+                busRxState_  = BusRxState::SRC;
+                break;
+            case BusRxState::SRC:
+                busRxSrc_    = b;
+                busRxCrcRun_ = crc16Extend(busRxCrcRun_, &b, 1);
+                busRxState_  = BusRxState::LEN_LO;
+                break;
+            case BusRxState::LEN_LO:
+                busRxLen_    = b;
+                busRxCrcRun_ = crc16Extend(busRxCrcRun_, &b, 1);
+                busRxState_  = BusRxState::LEN_HI;
+                break;
+            case BusRxState::LEN_HI:
+                busRxLen_   |= static_cast<uint16_t>(b) << 8;
+                busRxCrcRun_ = crc16Extend(busRxCrcRun_, &b, 1);
+                busRxBufPos_ = 0;
+                busRxLeft_   = busRxLen_;
+                busRxState_  = (busRxLeft_ == 0) ? BusRxState::CRC_LO : BusRxState::PAYLOAD;
+                break;
+            case BusRxState::PAYLOAD:
+                if (busRxBufPos_ < sizeof(busRxBuf_))
+                    busRxBuf_[busRxBufPos_++] = b;
+                busRxCrcRun_ = crc16Extend(busRxCrcRun_, &b, 1);
+                if (--busRxLeft_ == 0)
+                    busRxState_ = BusRxState::CRC_LO;
+                break;
+            case BusRxState::CRC_LO:
+                busRxCrcLo_ = b;
+                busRxState_ = BusRxState::CRC_HI;
+                break;
+            case BusRxState::CRC_HI: {
+                uint16_t rxCrc = static_cast<uint16_t>(busRxCrcLo_) |
+                                 (static_cast<uint16_t>(b) << 8);
+                if (rxCrc == busRxCrcRun_ && busRxBufPos_ > 0)
+                    dispatchBusFrame(busRxSrc_, busRxBuf_, busRxBufPos_);
+                busRxState_ = BusRxState::IDLE;
+                break;
+            }
+            }
+        }
+    }
+
+    void dispatchBusFrame(uint8_t src, const uint8_t* payload, uint8_t len) {
+        if (src == 0 || src > 254 || len == 0) return;
+        uint8_t msgType = payload[0];
+        switch (msgType) {
+        case kRS485_PROBE_ACK:
+            // Slave responded to a probe — mark alive and record ack timestamp.
+            registerSlave(src);
+            lastAckMs_[src - 1] = millis();
+            break;
+        case kRS485_MODE_ACK:
+            // Slave acknowledged mode change — refresh ack timestamp.
+            lastAckMs_[src - 1] = millis();
+            break;
+        case kRS485_IMPORT:
+            // Relay the import line payload verbatim to the PC.
+            if (pc_ && len > 1)
+                pc_->write(payload + 1, len - 1);
+            lastAckMs_[src - 1] = millis();
+            break;
+        default:
+            break;
         }
     }
 
@@ -361,6 +467,8 @@ private:
     uint8_t  aliveMap_[32]          = {};
     // Per-address timestamp of last probe sent (for retry / keep-alive).
     uint32_t lastProbeMs_[254]      = {};
+    // Per-address timestamp of last ack received (for offline-timeout).
+    uint32_t lastAckMs_[254]        = {};
     uint8_t  scanAddr_              = 1;     // cursor for full-sweep scan
     uint32_t lastPollMs_            = 0;
 

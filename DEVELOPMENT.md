@@ -56,7 +56,7 @@ These are implementation-priority items focused on making setup and day-to-day u
 without taking on MSFS integration work yet.
 
 1. ✅ Runtime health and startup readiness reporting
-2. End-to-end RS-485 discovery lifecycle (discover, keep-alive, offline transitions)
+2. ✅ End-to-end RS-485 discovery lifecycle (discover, keep-alive, offline transitions)
 3. ✅ Replace heuristic frame forwarding with full frame-boundary parsing
 4. ✅ One-command setup and run path for operators
 5. First-run config generation with saved defaults
