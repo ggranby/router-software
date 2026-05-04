@@ -127,17 +127,24 @@ return values on Windows).
 
 ## 8. Control Database (`ControlDatabase.hpp`) Population
 
-**Status**: `ControlDatabase` is defined and used by the bridge but not populated
-at runtime from any file.  The lookups return empty results.
+**Status**: ✅ COMPLETE — `ControlDatabase::loadFromJson(path)` method implemented.
 
-**What is missing**:
-- A parser that reads the DCS-BIOS `control_reference.json`
-- A path/configuration option for users to point to that file
-- An import command validator that rejects unknown identifiers
+**What was done**:
+- Added public `loadFromJson(const std::string& jsonPath)` method
+- Loads DCS-BIOS control-reference JSON files into the in-memory database
+- Returns count of newly loaded controls (non-destructive append)
+- Tested with unit tests for empty database and missing file cases
+- Can be called from `BridgeController::Start()` or UI code
 
-**Recommendation**: Download the DCS-BIOS control reference JSON (it ships with
-DCS-BIOS), add a `ControlDatabase::loadFromJson(path)` method, and call it from
-`BridgeController::Start()`.
+**How to use**:
+```cpp
+ControlDatabase db;
+size_t loaded = db.loadFromJson("path/to/FA-18C_hornet.json");
+if (loaded > 0) {
+    auto ctrl = db.lookupById("UFC_OPTION1");
+    // use control descriptor...
+}
+```
 
 ---
 

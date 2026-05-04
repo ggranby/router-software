@@ -191,6 +191,25 @@ void registerControlDatabaseTests() {
 }
 
 // ============================================================================
+// RS485 Bus Scanning Tests
+// ============================================================================
+
+void registerRS485BusScanTests() {
+    auto suite = createSuite("RS485 Bus - Auto-Discovery");
+    
+    addTest(suite, "Slave address range validation", []() {
+        if (kRS485FirstSlaveAddr != 0x01) throw std::runtime_error("First slave addr");
+        if (kRS485LastSlaveAddr != 0xFE) throw std::runtime_error("Last slave addr");
+        if (kRS485MaxSlaves != 254) throw std::runtime_error("Max slaves count");
+    });
+    
+    addTest(suite, "Master address constant", []() {
+        if (kRS485MasterAddr != 0x00) throw std::runtime_error("Master addr");
+        if (kRS485BroadcastAddr != 0x00) throw std::runtime_error("Broadcast addr");
+    });
+}
+
+// ============================================================================
 // Main Test Runner
 // ============================================================================
 
@@ -205,6 +224,7 @@ int main() {
     registerDeltaFrameTests();
     registerRS485FrameTests();
     registerControlDatabaseTests();
+    registerRS485BusScanTests();
     
     // Run all suites
     int totalPass = 0, totalFail = 0;
