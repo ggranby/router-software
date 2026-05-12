@@ -1,0 +1,10 @@
+^C:\USERS\GGRAN\DESKTOP\ROUTER-SOFTWARE\BUILD\CMAKEFILES\E838943F161FD48F8618B9256807678F\GENERATE.STAMP.RULE
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SC:/Users/ggran/desktop/router-software/Programs/dcsbios-serial-bridge -BC:/Users/ggran/desktop/router-software/build --check-stamp-list CMakeFiles/generate.stamp.list --vs-solution-file C:/Users/ggran/desktop/router-software/build/hornet_link.slnx
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal & call :cmErrorLevel %errorlevel% & goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd

@@ -1,0 +1,78 @@
+{
+  "devices": [
+    {
+      "name": "UFC",
+      "templateName": "UFC",
+      "wantsAll": false,
+      "subscriptions": [
+        { "address": 0x741E, "mask": 0xFFFF, "shift": 0 },
+        { "address": 0x7420, "mask": 0xFFFF, "shift": 0 },
+        { "address": 0x7422, "mask": 0xFFFF, "shift": 0 },
+        { "address": 0x7424, "mask": 0xFFFF, "shift": 0 },
+        { "address": 0x7426, "mask": 0xFFFF, "shift": 0 }
+      ]
+    },
+    {
+      "name": "MASTER_ARM",
+      "templateName": "MASTER_ARM",
+      "wantsAll": false,
+      "subscriptions": [
+        { "address": 0x53A0, "mask": 0x0001, "shift": 0 }
+      ]
+    },
+    {
+      "name": "HUD_REMOTE",
+      "templateName": "HUD_REMOTE",
+      "wantsAll": false,
+      "subscriptions": [
+        { "address": 0x494A, "mask": 0xFFFF, "shift": 0 },
+        { "address": 0x494C, "mask": 0xFFFF, "shift": 0 }
+      ]
+    },
+    {
+      "name": "ENG_PANEL_L",
+      "templateName": "ENG_L_PANEL",
+      "wantsAll": false,
+      "subscriptions": [
+        { "address": 0x5A26, "mask": 0xFFFF, "shift": 0 },
+        { "address": 0x5A28, "mask": 0xFFFF, "shift": 0 }
+      ]
+    },
+    {
+      "name": "ENG_PANEL_R",
+      "templateName": "ENG_R_PANEL",
+      "wantsAll": false,
+      "subscriptions": [
+        { "address": 0x5A2A, "mask": 0xFFFF, "shift": 0 },
+        { "address": 0x5A2C, "mask": 0xFFFF, "shift": 0 }
+      ]
+    },
+    {
+      "name": "CAUTION",
+      "templateName": "CAUTION_PANEL",
+      "wantsAll": false,
+      "subscriptions": [
+        { "address": 0x3E3E, "mask": 0xFFFF, "shift": 0 },
+        { "address": 0x3E40, "mask": 0xFFFF, "shift": 0 },
+        { "address": 0x3E42, "mask": 0xFFFF, "shift": 0 }
+      ]
+    },
+    {
+      "name": "BARO_ALT",
+      "templateName": "BARO_ALTIMETER",
+      "wantsAll": false,
+      "subscriptions": [
+        { "address": 0x6E4C, "mask": 0xFFFF, "shift": 0 }
+      ]
+    },
+    {
+      "name": "AUTOPILOT",
+      "templateName": "AUTOPILOT",
+      "wantsAll": false,
+      "subscriptions": [
+        { "address": 0x5638, "mask": 0xFFFF, "shift": 0 },
+        { "address": 0x563A, "mask": 0xFFFF, "shift": 0 }
+      ]
+    }
+  ]
+}
