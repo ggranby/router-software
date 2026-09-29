@@ -74,6 +74,9 @@ inline uint16_t hl_crc16(const uint8_t* data, size_t len) {
  * @param name         Device name string.
  * @param subs         Subscription array.
  * @param subCount     Number of subscriptions.
+ *
+ * When @p flags includes HL_FLAG_RS485_MASTER an empty slave list
+ * (`slave_count = 0`) is appended, as required by the protocol.
  */
 inline void hl_sendPong(Stream& stream,
                         uint8_t flags,
@@ -95,5 +98,11 @@ inline void hl_sendPong(Stream& stream,
         stream.write(static_cast<uint8_t>(subs[i].mask & 0xFF));
         stream.write(static_cast<uint8_t>((subs[i].mask >> 8) & 0xFF));
         stream.write(subs[i].shift);
+    }
+    // RS-485 masters must append a slave list (PROTOCOL_REFERENCE §2.5).
+    // Slaves are discovered dynamically after the handshake, so the list
+    // declared here is empty.
+    if (flags & HL_FLAG_RS485_MASTER) {
+        stream.write(static_cast<uint8_t>(0)); // slave_count
     }
 }

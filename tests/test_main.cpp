@@ -8,54 +8,24 @@
 #include "DeviceRegistry.hpp"
 #include "ControlDatabase.hpp"
 #include "RS485ProtocolSpec.hpp"
+#include "test_framework.hpp"
 
 using namespace dcsbios;
 
 // ============================================================================
-// Simple Test Framework
+// Test registry
 // ============================================================================
 
-class TestCase {
-public:
-    std::string name;
-    std::function<void()> fn;
-};
-
-class TestSuite {
-public:
-    std::string suiteName;
-    std::vector<TestCase> cases;
-    int passCount = 0;
-    int failCount = 0;
-    
-    void run() {
-        std::cout << "\n=== " << suiteName << " ===\n";
-        for (auto& test : cases) {
-            try {
-                test.fn();
-                passCount++;
-                std::cout << "  [PASS] " << test.name << "\n";
-            } catch (const std::exception& e) {
-                failCount++;
-                std::cout << "  [FAIL] " << test.name << " - " << e.what() << "\n";
-            } catch (...) {
-                failCount++;
-                std::cout << "  [FAIL] " << test.name << " - Unknown exception\n";
-            }
-        }
-    }
-};
-
-std::vector<TestSuite*> g_suites;
+std::vector<std::unique_ptr<TestSuite>> g_suites;
 
 TestSuite* createSuite(const std::string& name) {
-    auto suite = new TestSuite{name, {}, 0, 0};
-    g_suites.push_back(suite);
-    return suite;
+    g_suites.push_back(std::make_unique<TestSuite>());
+    g_suites.back()->suiteName = name;
+    return g_suites.back().get();
 }
 
 void addTest(TestSuite* suite, const std::string& name, std::function<void()> fn) {
-    suite->cases.push_back({name, fn});
+    suite->cases.push_back({name, std::move(fn)});
 }
 
 // ============================================================================
@@ -132,16 +102,20 @@ void registerProtocolParseTests() {
 
 void registerHandshakeTests() {
     auto suite = createSuite("HandshakeParser - Device Detection");
-    
-    addTest(suite, "Parser initialization", []() {
-        HandshakeParser parser;
-        DeviceInfo device;
-        if (!device.slaves.empty()) throw std::runtime_error("Slaves not empty");
+
+    addTest(suite, "Ping and ack frames", []() {
+        auto ping = HandshakeParser::pingFrame();
+        auto ack  = HandshakeParser::ackFrame();
+        EXPECT_EQ(ping[0], 0xAA); EXPECT_EQ(ping[1], 0xDE); EXPECT_EQ(ping[2], 0xAD);
+        EXPECT_EQ(ping[3], kProbePing);
+        EXPECT_EQ(ack[3], kProbeAck);
     });
-    
-    addTest(suite, "Device structure", []() {
+
+    addTest(suite, "Fresh DeviceInfo defaults to full stream", []() {
         DeviceInfo device;
-        if (device.subscriptions.size() != 0) throw std::runtime_error("Subs not empty");
+        EXPECT_TRUE(device.wantsAll);
+        EXPECT_TRUE(device.wantsAddress(0x1234));
+        EXPECT_TRUE(!device.handshakeDone);
     });
 }
 
@@ -151,23 +125,55 @@ void registerHandshakeTests() {
 
 void registerDeltaFrameTests() {
     auto suite = createSuite("BuildDeltaFrame - Subscription Filtering");
-    
-    addTest(suite, "Wildcard subscription", []() {
+
+    addTest(suite, "Wildcard device receives every dirty word", []() {
         BiosStateMap stateMap;
-        DeviceInfo device;
-        device.wantsAll = true;
-        
-        if (!device.wantsAll) throw std::runtime_error("wantsAll not set");
+        uint8_t data[] = {0x11, 0x22, 0x33, 0x44};
+        stateMap.write(0x0010, data, 4);
+        DeviceInfo device; // wantsAll by default
+        auto frame = BuildDeltaFrame(stateMap, stateMap.takeDirty(), device);
+        // sync(4) + one merged run header(4) + 4 data bytes
+        std::vector<uint8_t> expected = {0x55, 0x55, 0x55, 0x55,
+                                         0x10, 0x00, 0x04, 0x00,
+                                         0x11, 0x22, 0x33, 0x44};
+        EXPECT_TRUE(frame == expected);
     });
-    
-    addTest(suite, "Filtered subscription", []() {
+
+    addTest(suite, "Filtered device receives only subscribed words", []() {
+        BiosStateMap stateMap;
+        uint8_t a[] = {0x01, 0x02}, b[] = {0x03, 0x04};
+        stateMap.write(0x7406, a, 2);
+        stateMap.write(0x7408, b, 2);
         DeviceInfo device;
-        Subscription sub;
-        sub.mask = 0xFFFF;
-        sub.shift = 0;
+        Subscription sub; sub.byteAddr = 0x7408; sub.mask = 0xFFFF; sub.shift = 0;
         device.subscriptions.push_back(sub);
-        
-        if (device.subscriptions.size() != 1) throw std::runtime_error("Subscription not added");
+        device.buildAddrSet();
+        auto frame = BuildDeltaFrame(stateMap, stateMap.takeDirty(), device);
+        std::vector<uint8_t> expected = {0x55, 0x55, 0x55, 0x55,
+                                         0x08, 0x74, 0x02, 0x00, 0x03, 0x04};
+        EXPECT_TRUE(frame == expected);
+    });
+
+    addTest(suite, "Non-consecutive words produce separate records", []() {
+        BiosStateMap stateMap;
+        uint8_t a[] = {0xAA, 0xBB}, b[] = {0xCC, 0xDD};
+        stateMap.write(0x0000, a, 2);
+        stateMap.write(0x0004, b, 2);
+        DeviceInfo device;
+        auto frame = BuildDeltaFrame(stateMap, stateMap.takeDirty(), device);
+        EXPECT_EQ(frame.size(), size_t(4 + 6 + 6));
+        EXPECT_EQ(frame[4], 0x00); EXPECT_EQ(frame[10], 0x04);
+    });
+
+    addTest(suite, "No subscribed dirty words gives empty frame", []() {
+        BiosStateMap stateMap;
+        uint8_t a[] = {0x11, 0x22};
+        stateMap.write(0x0000, a, 2);
+        DeviceInfo device;
+        Subscription sub; sub.byteAddr = 0x7406; sub.mask = 0xFFFF; sub.shift = 0;
+        device.subscriptions.push_back(sub);
+        device.buildAddrSet();
+        EXPECT_TRUE(BuildDeltaFrame(stateMap, stateMap.takeDirty(), device).empty());
     });
 }
 
@@ -187,13 +193,10 @@ void registerRS485FrameTests() {
     });
     
     addTest(suite, "CRC-16 '123456789'", []() {
-        // Test vector for CRC-16/CCITT-FALSE algorithm  
-        // Standard reference: "123456789" -> 0x31C3 (with polynomial 0x1021, init 0xFFFF)
-        // Note: some implementations differ in reflection/XOR settings
         uint8_t testData[] = {0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39};
         uint16_t crc = crc16CcittFalse(testData, sizeof(testData));
-        // Accept the computed value as valid - this tests that the algorithm is consistent
-        if (crc == 0) throw std::runtime_error("CRC should not be zero");
+        // Standard CRC-16/CCITT-FALSE check value.
+        EXPECT_EQ(crc, 0x29B1);
     });
     
     addTest(suite, "Constants validation", []() {
@@ -451,10 +454,12 @@ int main() {
     registerFrameBoundaryTests();
     registerRS485RoundTripTests();
     registerDiscoveryLifecycleTests();
+    registerCoreTests();
+    registerProfileStoreTests();
     
     // Run all suites
     int totalPass = 0, totalFail = 0;
-    for (auto suite : g_suites) {
+    for (auto& suite : g_suites) {
         suite->run();
         totalPass += suite->passCount;
         totalFail += suite->failCount;

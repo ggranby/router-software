@@ -315,7 +315,9 @@ public:
             break;
         case ParseState::SubCountHi:
             subCount_ |= static_cast<uint16_t>(b) << 8;
-            state_ = (subCount_ == 0) ? ParseState::Complete : ParseState::SubAddrLo;
+            if (subCount_ != 0)       state_ = ParseState::SubAddrLo;
+            else if (flags_ & 0x01)   state_ = ParseState::SlaveCount; // master: slave list follows
+            else                      state_ = ParseState::Complete;
             break;
 
         // ── Subscription entry fields ─────────────────────────────────────
@@ -375,7 +377,8 @@ public:
             break;
         case ParseState::SlaveSubCountHi:
             slaveSubCount_ |= static_cast<uint16_t>(b) << 8;
-            state_ = (slaveSubCount_ == 0) ? ParseState::SlaveFinish : ParseState::SlaveSubAddrLo;
+            if (slaveSubCount_ == 0) finishSlave(); // no subscription bytes follow
+            else                     state_ = ParseState::SlaveSubAddrLo;
             break;
         case ParseState::SlaveSubAddrLo:
             curSlaveSub_.byteAddr = b;
@@ -397,27 +400,14 @@ public:
             curSlaveSub_.shift = b;
             curSlave_.subs.push_back(curSlaveSub_);
             if (static_cast<int>(curSlave_.subs.size()) == slaveSubCount_) {
-                // All subs for this slave parsed.  Store slave, check for more.
-                curSlave_.buildAddrSet();
-                slaves_.push_back(std::move(curSlave_));
-                if (++slaveRead_ == slaveCount_)
-                    state_ = ParseState::Complete;
-                else
-                    state_ = ParseState::SlaveAddr;
+                finishSlave();
             } else {
                 state_ = ParseState::SlaveSubAddrLo;
             }
             break;
         case ParseState::SlaveFinish:
-            // Entered when a slave has sub_count == 0 (no subs declared yet).
-            // In that case SlaveSubCountHi transitioned to SlaveFinish,
-            // consuming the byte there.  Here we store and advance.
-            curSlave_.buildAddrSet();
-            slaves_.push_back(std::move(curSlave_));
-            if (++slaveRead_ == slaveCount_)
-                state_ = ParseState::Complete;
-            else
-                state_ = ParseState::SlaveAddr;
+            // Retained for enum compatibility; finishSlave() never enters it.
+            state_ = ParseState::Complete;
             break;
 
         case ParseState::Complete:
@@ -463,6 +453,14 @@ public:
     }
 
 private:
+    /// Store the slave being parsed and advance to the next slave or completion.
+    void finishSlave() {
+        curSlave_.buildAddrSet();
+        slaves_.push_back(std::move(curSlave_));
+        curSlave_ = {};
+        state_ = (++slaveRead_ == slaveCount_) ? ParseState::Complete : ParseState::SlaveAddr;
+    }
+
     /**
      * @brief Parser state enumeration — one value per field in the pong frame.
      *
@@ -609,8 +607,11 @@ inline std::vector<uint8_t> BuildDeltaFrame(
  *   IDENTIFIER ACTION VALUE\n
  * @endcode
  *
- * Lines longer than 256 bytes are silently discarded to prevent unbounded
- * buffer growth in the event of framing errors.
+ * Lines longer than kImportLineMaxBytes are discarded in full (never
+ * forwarded truncated) to prevent unbounded buffer growth and partial
+ * commands in the event of framing errors. Lines are also rejected when the
+ * identifier is not `[A-Za-z0-9_]+` or any field contains control or
+ * non-ASCII bytes; see IsValidImportCommand().
  *
  * @thread_safety Not thread-safe. Must be called from the ReadDeviceThread
  *               that owns this serial port.
@@ -629,22 +630,53 @@ public:
         for (size_t i = 0; i < len; ++i) {
             char c = static_cast<char>(data[i]);
             if (c == '\n' || c == '\r') {
-                if (!line_.empty()) parseLine();
+                if (overflow_) ++rejectedLines_;
+                else if (!line_.empty()) parseLine();
                 line_.clear();
+                overflow_ = false;
             } else if (line_.size() < kImportLineMaxBytes) {
                 line_ += c;
+            } else {
+                overflow_ = true;
             }
         }
     }
 
+    /// Number of lines dropped because they were too long or malformed.
+    uint64_t rejectedLines() const { return rejectedLines_; }
+
+    /**
+     * @brief True if @p cmd is safe to forward to DCS-BIOS.
+     *
+     * Identifier must be `[A-Za-z0-9_]+`; action must be printable ASCII
+     * without spaces; value may contain spaces but no control characters.
+     */
+    static bool IsValidImportCommand(const ImportCommand& cmd) {
+        if (cmd.identifier.empty() || cmd.action.empty()) return false;
+        for (char ch : cmd.identifier) {
+            bool ok = (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') ||
+                      (ch >= '0' && ch <= '9') || ch == '_';
+            if (!ok) return false;
+        }
+        for (char ch : cmd.action) {
+            if (ch < 0x21 || ch > 0x7E) return false;
+        }
+        for (char ch : cmd.value) {
+            if (ch < 0x20 || ch > 0x7E) return false;
+        }
+        return true;
+    }
+
 private:
     std::string line_;
+    bool        overflow_      = false;
+    uint64_t    rejectedLines_ = 0;
 
     /// Parse the accumulated line into an ImportCommand and fire onCommand.
     void parseLine() {
         // Expected format: IDENTIFIER ACTION [VALUE]
         auto sp1 = line_.find(' ');
-        if (sp1 == std::string::npos) return;
+        if (sp1 == std::string::npos) { ++rejectedLines_; return; }
         ImportCommand cmd;
         cmd.identifier = line_.substr(0, sp1);
         auto rest = line_.substr(sp1 + 1);
@@ -655,9 +687,8 @@ private:
             cmd.action = rest.substr(0, sp2);
             cmd.value  = rest.substr(sp2 + 1);
         }
-        if (!cmd.identifier.empty() && !cmd.action.empty() && onCommand) {
-            onCommand(cmd);
-        }
+        if (!IsValidImportCommand(cmd)) { ++rejectedLines_; return; }
+        if (onCommand) onCommand(cmd);
     }
 };
 

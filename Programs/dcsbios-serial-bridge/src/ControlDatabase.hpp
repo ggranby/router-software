@@ -86,6 +86,7 @@ public:
     size_t load(const std::string& jsonDir, const std::string& moduleFilter = {}) {
         byAddr_.clear();
         byId_.clear();
+        lastError_.clear();
 
         try {
             namespace fs = std::filesystem;
@@ -99,7 +100,11 @@ public:
                     loadFile(entry.path().string());
                 }
             }
-        } catch (...) {}
+        } catch (const std::exception& e) {
+            lastError_ = std::string("control JSON load failed: ") + e.what();
+        } catch (...) {
+            lastError_ = "control JSON load failed (unknown error)";
+        }
 
         return byId_.size();
     }
@@ -122,7 +127,11 @@ public:
         size_t sizeBefore = byId_.size();
         try {
             loadFile(jsonPath);
-        } catch (...) {}
+        } catch (const std::exception& e) {
+            lastError_ = "failed to load " + jsonPath + ": " + e.what();
+        } catch (...) {
+            lastError_ = "failed to load " + jsonPath + " (unknown error)";
+        }
         return byId_.size() - sizeBefore;
     }
 
@@ -167,7 +176,11 @@ public:
     /// @return True when no controls have been loaded.
     bool empty() const { return byId_.empty(); }
 
+    /// Description of the most recent load failure (empty if none).
+    const std::string& lastError() const { return lastError_; }
+
 private:
+    std::string lastError_;
     /// Address → list of descriptor pointers (multiple per address for bit-packed fields).
     std::unordered_map<uint16_t, std::vector<const ControlDescriptor*>> byAddr_;
     /// Identifier → owned descriptor (single canonical copy).
