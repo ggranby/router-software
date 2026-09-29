@@ -240,8 +240,6 @@ private:
     uint16_t      addr_   = 0;
     uint16_t      len_    = 0;
     uint16_t      count_  = 0;
-    uint8_t       buf_[4] = {};  // sync candidate buffer
-    uint8_t       syncCnt_= 0;
     bool          inFrame_ = false;
 
     void processByte(uint8_t b) {

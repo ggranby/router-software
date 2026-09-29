@@ -47,6 +47,14 @@
 #include "MsfsSource.hpp"
 #include "ProfileStore.hpp"
 #include "RS485ProtocolSpec.hpp"
+
+// Set by CMake from project(VERSION); "dev" for ad-hoc builds.
+#ifndef HORNET_LINK_VERSION
+#define HORNET_LINK_VERSION "dev"
+#endif
+#define HORNET_LINK_WIDEN2(x) L##x
+#define HORNET_LINK_WIDEN(x) HORNET_LINK_WIDEN2(x)
+#define HORNET_LINK_VERSION_W HORNET_LINK_WIDEN(HORNET_LINK_VERSION)
 #include "TextConv.hpp"
 
 #include <algorithm>
@@ -2168,7 +2176,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow) {
     RegisterClassW(&wc);
 
     HWND hwnd = CreateWindowExW(
-        WS_EX_COMPOSITED, kClass, L"Hornet Link",
+        WS_EX_COMPOSITED, kClass, L"Hornet Link " HORNET_LINK_VERSION_W,
         WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
         CW_USEDEFAULT, CW_USEDEFAULT, 960, 600,
         nullptr, nullptr, hInstance, nullptr);

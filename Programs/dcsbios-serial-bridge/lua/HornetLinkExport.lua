@@ -42,15 +42,11 @@ local HL_PORT = 42002
 
 -- ── Socket ──────────────────────────────────────────────
 local hl_socket  = nil
-local hl_addr    = nil
-local hl_buf     = ""      -- accumulates bytes for this frame
-local hl_synced  = false   -- true after first sync is appended
 
 -- ── Helpers ─────────────────────────────────────────────
 local function hl_open()
     hl_socket = socket.udp()
     hl_socket:settimeout(0)
-    hl_addr = { ip = HL_HOST, port = HL_PORT }
 end
 
 local function hl_u16le(v)

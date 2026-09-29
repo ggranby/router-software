@@ -130,4 +130,12 @@ void registerProfileStoreTests() {
         EXPECT_TRUE(!store.save("NAME", DeviceProfile{}));
         EXPECT_TRUE(!store.lastError().empty());
     });
+
+    addTest(suite, "In-memory parse reports origin on error", []() {
+        ProfileStore store;
+        EXPECT_EQ(store.parseUserProfiles(R"({"A":{"wantsAll":true}})"), size_t(1));
+        EXPECT_TRUE(store.resolve("A").has_value());
+        EXPECT_EQ(store.parseTemplates("{", "panels.json"), size_t(0));
+        EXPECT_TRUE(store.lastError().find("panels.json") != std::string::npos);
+    });
 }

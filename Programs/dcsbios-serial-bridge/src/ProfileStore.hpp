@@ -456,7 +456,24 @@ private:
     size_t loadUserProfiles(const std::filesystem::path& path) {
         std::string json;
         if (!readFile(path, json)) return 0;
+        return parseUserProfiles(json, path.u8string());
+    }
 
+    size_t loadTemplates(const std::filesystem::path& path) {
+        std::string json;
+        if (!readFile(path, json)) return 0;
+        return parseTemplates(json, path.u8string());
+    }
+
+public:
+    /**
+     * @brief Parse a device_profiles.json document held in memory and merge it.
+     * @param json    Document text.
+     * @param origin  Name used in error messages (e.g. the file path).
+     * @return Number of profiles merged; 0 with lastError() set if malformed.
+     */
+    size_t parseUserProfiles(const std::string& json,
+                             const std::string& origin = "input") {
         std::unordered_map<std::string, DeviceProfile> parsed;
         DeviceProfile current;
         bool ok = parseDocument(json,
@@ -471,7 +488,7 @@ private:
                 current = DeviceProfile{};
             });
         if (!ok) {
-            lastError_ = "malformed JSON in " + path.u8string();
+            lastError_ = "malformed JSON in " + origin;
             return 0;
         }
         size_t count = parsed.size();
@@ -479,10 +496,14 @@ private:
         return count;
     }
 
-    size_t loadTemplates(const std::filesystem::path& path) {
-        std::string json;
-        if (!readFile(path, json)) return 0;
-
+    /**
+     * @brief Parse a panels.json template document held in memory and merge it.
+     * @param json    Document text.
+     * @param origin  Name used in error messages (e.g. the file path).
+     * @return Number of templates merged; 0 with lastError() set if malformed.
+     */
+    size_t parseTemplates(const std::string& json,
+                             const std::string& origin = "input") {
         std::unordered_map<std::string, TemplateEntry> parsed;
         TemplateEntry current;
         bool ok = parseDocument(json,
@@ -496,7 +517,7 @@ private:
                 current = TemplateEntry{};
             });
         if (!ok) {
-            lastError_ = "malformed JSON in " + path.u8string();
+            lastError_ = "malformed JSON in " + origin;
             return 0;
         }
         size_t count = parsed.size();
@@ -504,6 +525,7 @@ private:
         return count;
     }
 
+private:
     /**
      * @brief Write current userProfiles_ back to device_profiles.json.
      * @return True if the file was fully written and moved into place.
