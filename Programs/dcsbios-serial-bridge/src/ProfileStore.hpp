@@ -219,7 +219,10 @@ public:
      *         the name is invalid or the file could not be written.
      */
     bool save(const std::string& deviceName, const DeviceProfile& profile) {
-        if (!IsValidDeviceName(deviceName)) return false;
+        if (!IsValidDeviceName(deviceName)) {
+            lastError_ = "invalid device name";
+            return false;
+        }
         userProfiles_[deviceName] = profile;
         return flushUserProfiles();
     }
@@ -305,19 +308,25 @@ private:
                 case 'r': out += '\r'; break;
                 case 't': out += '\t'; break;
                 case 'u': {
-                    if (pos_ + 4 > s_.size()) { fail(); break; }
-                    unsigned v = 0;
-                    for (int i = 0; i < 4; ++i) {
-                        char h = s_[pos_++];
-                        v <<= 4;
-                        if (h >= '0' && h <= '9') v |= static_cast<unsigned>(h - '0');
-                        else if (h >= 'a' && h <= 'f') v |= static_cast<unsigned>(h - 'a' + 10);
-                        else if (h >= 'A' && h <= 'F') v |= static_cast<unsigned>(h - 'A' + 10);
-                        else { fail(); break; }
+                    uint32_t codePoint = 0;
+                    if (!readHexCodeUnit(codePoint)) { fail(); break; }
+                    if (codePoint >= 0xD800 && codePoint <= 0xDBFF) {
+                        if (pos_ + 2 > s_.size() || s_[pos_] != '\\' || s_[pos_ + 1] != 'u') {
+                            fail();
+                            break;
+                        }
+                        pos_ += 2;
+                        uint32_t low = 0;
+                        if (!readHexCodeUnit(low) || low < 0xDC00 || low > 0xDFFF) {
+                            fail();
+                            break;
+                        }
+                        codePoint = 0x10000 + ((codePoint - 0xD800) << 10) + (low - 0xDC00);
+                    } else if (codePoint >= 0xDC00 && codePoint <= 0xDFFF) {
+                        fail();
+                        break;
                     }
-                    // Non-ASCII code points are not meaningful in device or
-                    // template names; keep them visible but harmless.
-                    out += (v < 0x80) ? static_cast<char>(v) : '?';
+                    appendUtf8(out, codePoint);
                     break;
                 }
                 default: fail(); break;
@@ -383,15 +392,71 @@ private:
                 }
                 return;
             }
-            // number / true / false / null
-            size_t start = pos_;
-            while (pos_ < s_.size() && s_[pos_] != ',' && s_[pos_] != '}' && s_[pos_] != ']' &&
-                   s_[pos_] != ' ' && s_[pos_] != '\t' && s_[pos_] != '\r' && s_[pos_] != '\n')
-                ++pos_;
-            if (pos_ == start) fail();
+            if (s_.compare(pos_, 4, "true") == 0) { pos_ += 4; return; }
+            if (s_.compare(pos_, 5, "false") == 0) { pos_ += 5; return; }
+            if (s_.compare(pos_, 4, "null") == 0) { pos_ += 4; return; }
+            skipNumber();
         }
 
     private:
+        bool readHexCodeUnit(uint32_t& value) {
+            if (pos_ + 4 > s_.size()) return false;
+            value = 0;
+            for (int i = 0; i < 4; ++i) {
+                char h = s_[pos_++];
+                value <<= 4;
+                if (h >= '0' && h <= '9') value |= static_cast<uint32_t>(h - '0');
+                else if (h >= 'a' && h <= 'f') value |= static_cast<uint32_t>(h - 'a' + 10);
+                else if (h >= 'A' && h <= 'F') value |= static_cast<uint32_t>(h - 'A' + 10);
+                else return false;
+            }
+            return true;
+        }
+
+        static void appendUtf8(std::string& out, uint32_t codePoint) {
+            if (codePoint <= 0x7F) {
+                out += static_cast<char>(codePoint);
+            } else if (codePoint <= 0x7FF) {
+                out += static_cast<char>(0xC0 | (codePoint >> 6));
+                out += static_cast<char>(0x80 | (codePoint & 0x3F));
+            } else if (codePoint <= 0xFFFF) {
+                out += static_cast<char>(0xE0 | (codePoint >> 12));
+                out += static_cast<char>(0x80 | ((codePoint >> 6) & 0x3F));
+                out += static_cast<char>(0x80 | (codePoint & 0x3F));
+            } else {
+                out += static_cast<char>(0xF0 | (codePoint >> 18));
+                out += static_cast<char>(0x80 | ((codePoint >> 12) & 0x3F));
+                out += static_cast<char>(0x80 | ((codePoint >> 6) & 0x3F));
+                out += static_cast<char>(0x80 | (codePoint & 0x3F));
+            }
+        }
+
+        void skipNumber() {
+            if (pos_ < s_.size() && s_[pos_] == '-') ++pos_;
+            if (pos_ >= s_.size()) { fail(); return; }
+            if (s_[pos_] == '0') {
+                ++pos_;
+            } else if (s_[pos_] >= '1' && s_[pos_] <= '9') {
+                do { ++pos_; } while (pos_ < s_.size() && s_[pos_] >= '0' && s_[pos_] <= '9');
+            } else {
+                fail();
+                return;
+            }
+            if (pos_ < s_.size() && s_[pos_] == '.') {
+                ++pos_;
+                size_t fractionStart = pos_;
+                while (pos_ < s_.size() && s_[pos_] >= '0' && s_[pos_] <= '9') ++pos_;
+                if (pos_ == fractionStart) { fail(); return; }
+            }
+            if (pos_ < s_.size() && (s_[pos_] == 'e' || s_[pos_] == 'E')) {
+                ++pos_;
+                if (pos_ < s_.size() && (s_[pos_] == '+' || s_[pos_] == '-')) ++pos_;
+                size_t exponentStart = pos_;
+                while (pos_ < s_.size() && s_[pos_] >= '0' && s_[pos_] <= '9') ++pos_;
+                if (pos_ == exponentStart) fail();
+            }
+        }
+
         const std::string& s_;
         size_t pos_ = 0;
         bool   ok_  = true;

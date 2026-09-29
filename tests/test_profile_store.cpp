@@ -43,7 +43,8 @@ void registerProfileStoreTests() {
         TempDir dir;
         dir.write("device_profiles.json",
                   "{ \"1A1-UIP\": { \"templateName\": \"UIP\", \"subscriptions\": [5128, 5130],"
-                  " \"wantsAll\": false, \"futureKey\": {\"x\": [1, 2]} } }");
+                  " \"wantsAll\": false, \"futureKey\": {\"x\": [1, 2]},"
+                  " \"futureScalars\": [true, false, null, -1.25e+2] } }");
         dir.write(fs::path("templates") / "panels.json",
                   "{ \"MASTER_ARM\": { \"description\": \"d\", \"subscriptions\": [13312] } }");
         ProfileStore store;
@@ -71,6 +72,11 @@ void registerProfileStoreTests() {
             "{ \"X\": { \"subscriptions\": [70000] } }",
             "{ \"X\": { \"templateName\": \"unterminated } }",
             "{ \"X\": { \"subscriptions\": [ { \"address\": 0x741E } ] } }",
+            "{ \"X\": { \"futureKey\": garbage } }",
+            "{ \"X\": { \"futureKey\": NaN } }",
+            "{ \"X\": { \"futureKey\": 01 } }",
+            "{ \"X\": { \"futureKey\": 1. } }",
+            "{ \"X\": { \"futureKey\": 1e+ } }",
             "{ \"X\": ",
             "[]",
             "",
@@ -120,6 +126,7 @@ void registerProfileStoreTests() {
         store.load(dir.path);
         DeviceProfile p;
         EXPECT_TRUE(!store.save("", p));
+        EXPECT_TRUE(!store.lastError().empty());
         EXPECT_TRUE(!store.save(std::string("bad\nname"), p));
         EXPECT_TRUE(!store.save(std::string(kDeviceNameMaxBytes + 1, 'a'), p));
         EXPECT_TRUE(!fs::exists(dir.path / "device_profiles.json"));
@@ -137,5 +144,21 @@ void registerProfileStoreTests() {
         EXPECT_TRUE(store.resolve("A").has_value());
         EXPECT_EQ(store.parseTemplates("{", "panels.json"), size_t(0));
         EXPECT_TRUE(store.lastError().find("panels.json") != std::string::npos);
+    });
+
+    addTest(suite, "Template names decode Unicode escapes without collisions", []() {
+        ProfileStore store;
+        EXPECT_EQ(store.parseTemplates(
+            R"({"\u00e9":{"subscriptions":[1]},"\u00e8":{"subscriptions":[2]},"\ud83d\ude00":{"subscriptions":[3]}})"),
+            size_t(3));
+        EXPECT_TRUE(store.templateSubscriptions(u8"é").value_or(std::vector<uint16_t>{}) ==
+                    std::vector<uint16_t>{1});
+        EXPECT_TRUE(store.templateSubscriptions(u8"è").value_or(std::vector<uint16_t>{}) ==
+                    std::vector<uint16_t>{2});
+        EXPECT_TRUE(store.templateSubscriptions(u8"😀").value_or(std::vector<uint16_t>{}) ==
+                    std::vector<uint16_t>{3});
+
+        EXPECT_EQ(store.parseTemplates(R"({"\ud83d":{"subscriptions":[]}})"), size_t(0));
+        EXPECT_TRUE(!store.lastError().empty());
     });
 }

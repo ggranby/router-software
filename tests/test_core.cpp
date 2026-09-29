@@ -202,9 +202,9 @@ void registerCoreTests() {
 
     addTest(st, "Odd top address reads as zero high byte", []() {
         BiosStateMap m;
-        uint8_t data[2] = {0x7F, 0x00};
+        uint8_t data[2] = {0x7F, 0x12};
         m.write(0xFFFE, data, 2);
-        EXPECT_EQ(m.readWord(0xFFFF), 0x0000);
+        EXPECT_EQ(m.readWord(0xFFFF), 0x0012);
         EXPECT_EQ(m.byteAt(0x10000), 0);
     });
 
