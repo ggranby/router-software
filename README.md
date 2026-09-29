@@ -138,6 +138,12 @@ The bridge uses a multi-threaded architecture:
 
 Communication is thread-safe via atomic counters and message queues.
 
+## Developer Documentation
+
+See [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) for the current
+development status, build and test instructions, known constraints, and
+prioritized future-work backlog.
+
 ## Dependencies
 
 ### DCS-BIOS (Required for full cockpit data)
