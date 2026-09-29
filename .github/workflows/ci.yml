@@ -15,7 +15,7 @@ jobs:
   # ── Windows MSVC build ─────────────────────────────────────────────────────
   build-windows:
     name: Build (Windows / MSVC)
-    runs-on: windows-latest
+    runs-on: windows-2022
 
     steps:
       - name: Checkout
