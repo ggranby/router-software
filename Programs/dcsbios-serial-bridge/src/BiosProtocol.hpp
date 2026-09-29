@@ -76,15 +76,26 @@ public:
      *
      * @details Only bytes that actually change are marked dirty, so the dirty
      * set reflects genuine state transitions rather than redundant writes.
+     * Bytes that would fall beyond the 64 KiB address space are discarded.
      */
     void write(uint16_t addr, const uint8_t* data, uint16_t len) {
         for (uint16_t i = 0; i < len; ++i) {
-            if (state_[addr + i] != data[i]) {
-                state_[addr + i] = data[i];
+            const size_t idx = static_cast<size_t>(addr) + i;
+            if (idx >= kStateBytes) break;
+            if (state_[idx] != data[i]) {
+                state_[idx] = data[i];
                 // mark entire containing 16-bit word dirty
-                dirty_[(addr + i) & 0xFFFEu] = true;
+                dirty_[idx & 0xFFFEu] = true;
             }
         }
+    }
+
+    /**
+     * @brief Bounds-checked single-byte read.
+     * @param byteAddr  Byte address; values beyond the address space read as 0.
+     */
+    uint8_t byteAt(size_t byteAddr) const {
+        return byteAddr < kStateBytes ? state_[byteAddr] : 0;
     }
 
     /**
@@ -94,8 +105,8 @@ public:
      */
     uint16_t readWord(uint16_t byteAddr) const {
         uint16_t v = 0;
-        v |= static_cast<uint16_t>(state_[byteAddr]);
-        v |= static_cast<uint16_t>(state_[byteAddr + 1]) << 8;
+        v |= static_cast<uint16_t>(byteAt(byteAddr));
+        v |= static_cast<uint16_t>(byteAt(static_cast<size_t>(byteAddr) + 1)) << 8;
         return v;
     }
 
@@ -229,8 +240,6 @@ private:
     uint16_t      addr_   = 0;
     uint16_t      len_    = 0;
     uint16_t      count_  = 0;
-    uint8_t       buf_[4] = {};  // sync candidate buffer
-    uint8_t       syncCnt_= 0;
     bool          inFrame_ = false;
 
     void processByte(uint8_t b) {

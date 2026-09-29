@@ -237,19 +237,28 @@ Otherwise returns a complete DCS-BIOS frame (sync + write records).
 
 ## ProfileStore (`ProfileStore.hpp`)
 
-Persists per-device subscription lists as JSON.
+Persists per-device subscription lists as JSON. Portable (no Windows
+dependencies). Not yet wired into the bridge; see the Developer Guide.
 
 ```cpp
 class ProfileStore {
 public:
     // Load device_profiles.json and templates/panels.json from exeDir.
-    void load(const std::wstring& exeDir);
+    // Files over kProfileFileMaxBytes or with malformed JSON are rejected.
+    size_t load(const std::filesystem::path& exeDir);
+
+    // Parse documents held in memory (used by load(), tests, and fuzzing).
+    size_t parseUserProfiles(const std::string& json, const std::string& origin = "input");
+    size_t parseTemplates(const std::string& json, const std::string& origin = "input");
 
     // Return a profile for deviceName, or nullopt if none found.
     std::optional<DeviceProfile> resolve(const std::string& deviceName) const;
 
-    // Persist a device's subscription list.
-    void save(const std::string& deviceName, const DeviceProfile& profile);
+    // Persist a device's subscription list (atomic temp-file + rename).
+    // Returns false for invalid names or I/O errors; see lastError().
+    bool save(const std::string& deviceName, const DeviceProfile& profile);
+
+    const std::string& lastError() const;
 };
 ```
 

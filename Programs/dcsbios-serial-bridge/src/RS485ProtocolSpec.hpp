@@ -65,7 +65,9 @@
  */
 
 #pragma once
+#include <cstddef>
 #include <cstdint>
+#include <vector>
 
 namespace dcsbios {
 
@@ -287,7 +289,7 @@ struct RS485Frame {
      * @return True if the CRC matches; false if the frame is corrupted.
      */
     static bool verifyCrc(const uint8_t* frame, size_t len) {
-        if (len < static_cast<size_t>(kRS485HeaderBytes + kRS485CrcBytes)) return false;
+        if (len < static_cast<size_t>(kRS485HeaderBytes) + kRS485CrcBytes) return false;
         // CRC covers bytes 1..(len-3) inclusive
         size_t coveredLen = len - 1 - kRS485CrcBytes;
         uint16_t computed = crc16CcittFalse(frame + 1, coveredLen);
@@ -295,11 +297,5 @@ struct RS485Frame {
         return computed == received;
     }
 };
-
-#ifndef ARDUINO
-// On the PC side, include <vector> for RS485Frame::encode.
-// On Arduino, the caller provides a fixed-size buffer instead.
-#include <vector>
-#endif
 
 } // namespace dcsbios

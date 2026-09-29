@@ -188,15 +188,10 @@ callback and forwards each frame directly over UDP to `127.0.0.1:42002`.
 
 ## Contributing
 
-Contributions are welcome under the CC BY-NC-SA 4.0 license. 
-
-Before submitting:
-1. Fork the repository
-2. Create a feature branch
-3. Test your changes thoroughly
-4. Submit a pull request with clear description
-
-All contributions must comply with CC BY-NC-SA 4.0 terms.
+Contributions are welcome under the CC BY-NC-SA 4.0 license. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for the workflow and local checks, and
+[SECURITY.md](SECURITY.md) to report vulnerabilities privately. Notable changes
+are recorded in [CHANGELOG.md](CHANGELOG.md).
 
 ## Acknowledgments
 

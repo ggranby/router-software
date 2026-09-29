@@ -1,5 +1,0 @@
-The former session-specific plan is superseded. Current implementation status
-and the prioritized future-work backlog are maintained in
-../../docs/DEVELOPER_GUIDE.md.
-
-Use that guide as the source of truth when starting future work.

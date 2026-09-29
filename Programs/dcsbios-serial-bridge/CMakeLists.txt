@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(hornet_link LANGUAGES CXX)
+project(hornet_link VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -25,11 +25,20 @@ set_target_properties(hornet-link PROPERTIES
     OUTPUT_NAME "hornet-link"
 )
 
+# Single version source: project(VERSION) above feeds the binary, the
+# Windows VERSIONINFO resource and the CPack package name.
+if(WIN32)
+    enable_language(RC)
+    configure_file(src/version.rc.in ${CMAKE_CURRENT_BINARY_DIR}/version.rc @ONLY)
+    target_sources(hornet-link PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/version.rc)
+endif()
+
 target_compile_definitions(hornet-link PRIVATE
     UNICODE
     _UNICODE
     WIN32_LEAN_AND_MEAN
     NOMINMAX
+    HORNET_LINK_VERSION="${PROJECT_VERSION}"
 )
 
 target_link_libraries(hornet-link PRIVATE
@@ -37,7 +46,9 @@ target_link_libraries(hornet-link PRIVATE
 )
 
 if(MSVC)
-    target_compile_options(hornet-link PRIVATE /W4 /permissive-)
+    # /sdl: extra security checks; /guard:cf + /CETCOMPAT: control-flow hardening.
+    target_compile_options(hornet-link PRIVATE /W4 /permissive- /utf-8 /sdl /guard:cf)
+    target_link_options(hornet-link PRIVATE /guard:cf /DYNAMICBASE /NXCOMPAT /CETCOMPAT)
 endif()
 
 # Copy seed configuration files to build directory
@@ -113,7 +124,7 @@ endif()
 
 set(CPACK_PACKAGE_NAME "hornet-link")
 set(CPACK_PACKAGE_VENDOR "Hornet Link")
-set(CPACK_PACKAGE_VERSION "0.1.0")
+set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "Hornet Link")
 set(CPACK_PACKAGE_FILE_NAME "hornet-link-${CPACK_PACKAGE_VERSION}-${CMAKE_SYSTEM_NAME}")
 set(CPACK_MONOLITHIC_INSTALL ON)

@@ -39,6 +39,7 @@
  *            Licensed under the Apache License, Version 2.0.
  */
 
+#include "LogPost.hpp"
 #include "SimSource.hpp"
 #include "BiosProtocol.hpp"
 
@@ -157,10 +158,7 @@ private:
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     void postLog(const std::wstring& msg) const {
-        if (!logHwnd_) return;
-        constexpr int kLogMessage = WM_APP + 1;
-        auto* payload = new std::wstring(msg + L"\r\n");
-        PostMessage(logHwnd_, kLogMessage, 0, reinterpret_cast<LPARAM>(payload));
+        PostLogLine(logHwnd_, msg + L"\r\n");
     }
 
     bool initListenSocket() {

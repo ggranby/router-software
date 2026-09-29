@@ -86,6 +86,7 @@ public:
     size_t load(const std::string& jsonDir, const std::string& moduleFilter = {}) {
         byAddr_.clear();
         byId_.clear();
+        lastError_.clear();
 
         try {
             namespace fs = std::filesystem;
@@ -99,7 +100,11 @@ public:
                     loadFile(entry.path().string());
                 }
             }
-        } catch (...) {}
+        } catch (const std::exception& e) {
+            lastError_ = std::string("control JSON load failed: ") + e.what();
+        } catch (...) {
+            lastError_ = "control JSON load failed (unknown error)";
+        }
 
         return byId_.size();
     }
@@ -122,7 +127,11 @@ public:
         size_t sizeBefore = byId_.size();
         try {
             loadFile(jsonPath);
-        } catch (...) {}
+        } catch (const std::exception& e) {
+            lastError_ = "failed to load " + jsonPath + ": " + e.what();
+        } catch (...) {
+            lastError_ = "failed to load " + jsonPath + " (unknown error)";
+        }
         return byId_.size() - sizeBefore;
     }
 
@@ -167,7 +176,11 @@ public:
     /// @return True when no controls have been loaded.
     bool empty() const { return byId_.empty(); }
 
+    /// Description of the most recent load failure (empty if none).
+    const std::string& lastError() const { return lastError_; }
+
 private:
+    std::string lastError_;
     /// Address → list of descriptor pointers (multiple per address for bit-packed fields).
     std::unordered_map<uint16_t, std::vector<const ControlDescriptor*>> byAddr_;
     /// Identifier → owned descriptor (single canonical copy).
@@ -355,7 +368,7 @@ inline uint32_t ReadControlValue(const ControlDescriptor& desc, const BiosStateM
     if (desc.isString) {
         uint32_t hash = 2166136261u;
         for (uint16_t i = 0; i < desc.strLen; ++i) {
-            char ch = static_cast<char>(state.raw()[desc.byteAddr + i]);
+            char ch = static_cast<char>(state.byteAt(static_cast<size_t>(desc.byteAddr) + i));
             if (ch == 0) break;
             hash ^= static_cast<uint8_t>(ch);
             hash *= 16777619u;
@@ -385,24 +398,19 @@ inline std::wstring FormatWireStateChange(const ControlDescriptor& desc, const B
         return std::wstring(value.begin(), value.end());
     };
 
-    wchar_t buf[512];
+    std::wstring line = toWide(desc.identifier) + L" SET_STATE ";
     if (desc.isString) {
         std::string s;
         for (uint16_t i = 0; i < desc.strLen; ++i) {
-            char ch = static_cast<char>(state.raw()[desc.byteAddr + i]);
+            char ch = static_cast<char>(state.byteAt(static_cast<size_t>(desc.byteAddr) + i));
             if (ch == 0) break;
             s += ch;
         }
-
-        std::wstring id = toWide(desc.identifier);
-        std::wstring ws(s.begin(), s.end());
-        swprintf_s(buf, L"%s SET_STATE \"%s\"", id.c_str(), ws.c_str());
+        line += L"\"" + toWide(s) + L"\"";
     } else {
-        uint32_t val = ReadControlValue(desc, state);
-        std::wstring id = toWide(desc.identifier);
-        swprintf_s(buf, L"%s SET_STATE %u", id.c_str(), static_cast<unsigned>(val));
+        line += std::to_wstring(ReadControlValue(desc, state));
     }
-    return buf;
+    return line;
 }
 
 /**

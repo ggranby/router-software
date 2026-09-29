@@ -48,6 +48,15 @@
 #include "ProfileStore.hpp"
 #include "RS485ProtocolSpec.hpp"
 
+// Set by CMake from project(VERSION); "dev" for ad-hoc builds.
+#ifndef HORNET_LINK_VERSION
+#define HORNET_LINK_VERSION "dev"
+#endif
+#define HORNET_LINK_WIDEN2(x) L##x
+#define HORNET_LINK_WIDEN(x) HORNET_LINK_WIDEN2(x)
+#define HORNET_LINK_VERSION_W HORNET_LINK_WIDEN(HORNET_LINK_VERSION)
+#include "TextConv.hpp"
+
 #include <algorithm>
 #include <atomic>
 #include <cctype>
@@ -94,7 +103,6 @@ constexpr auto   kLogStartupSettleWindow = std::chrono::seconds(15);
 /// even when no export data is arriving (e.g. while DCS is in the menu).
 constexpr DWORD  kSocketReceiveTimeoutMs = 5000;
 constexpr int kHotkeyId  = 1;
-constexpr int kLogMessage          = WM_APP + 1;
 constexpr int kBridgeStoppedMessage = WM_APP + 2;
 constexpr UINT_PTR kLogFlushTimer = 42;
 constexpr UINT_PTR kStatusRefreshTimer = 43;
@@ -215,8 +223,7 @@ void PostLog(HWND hwnd, const std::wstring& message) {
     localtime_s(&timeinfo, &time);
     wchar_t timestamp[32];
     wcsftime(timestamp, sizeof(timestamp) / sizeof(wchar_t), L"[%H:%M:%S]", &timeinfo);
-    auto* payload = new std::wstring(std::wstring(timestamp) + L" " + message + L"\r\n");
-    PostMessage(hwnd, kLogMessage, 0, reinterpret_cast<LPARAM>(payload));
+    PostLogLine(hwnd, std::wstring(timestamp) + L" " + message + L"\r\n");
 }
 
 std::wstring Trim(const std::wstring& input) {
@@ -348,6 +355,16 @@ std::wstring JoinPorts(const std::vector<int>& ports) {
     return out.str();
 }
 
+/**
+ * @brief Write all of @p size bytes to a serial handle.
+ * @return True only if WriteFile succeeded and wrote every byte.
+ */
+bool WriteAll(HANDLE h, const void* data, size_t size) {
+    DWORD written = 0;
+    return WriteFile(h, data, static_cast<DWORD>(size), &written, nullptr) &&
+           written == static_cast<DWORD>(size);
+}
+
 bool ConfigureSerialPort(HANDLE h) {
     DCB dcb = {};
     dcb.DCBlength = sizeof(DCB);
@@ -452,16 +469,11 @@ static std::string FindJsonDir() {
  *   new_mean = old_mean + (x - old_mean) / n
  * @endcode
  *
- * All operations on the mean and count are performed on std::atomic values
- * using relaxed loads/stores. The update is not atomically consistent as a
- * whole — a reader may observe a count that is one ahead of the mean, which
- * is acceptable for performance-monitoring instrumentation.
- *
  * @thread_safety
- * Individual load and store operations are atomic. The update sequence
- * (load count, compute new mean, store mean) is not a single atomic
- * transaction, so there is a small window for data races. This is intentional:
- * the metrics are advisory and the overhead of a mutex is not warranted.
+ * update() and reset() are serialised by an internal mutex so concurrent
+ * writers (e.g. several port writes) never lose samples. Readers use the
+ * atomic fields directly without locking; a reader may observe a count that
+ * is one ahead of the mean, which is acceptable for instrumentation.
  */
 struct OnlineAverage {
     std::atomic<uint64_t> count{0}; ///< Number of samples observed so far
@@ -473,6 +485,7 @@ struct OnlineAverage {
      * @param sample  The new measurement to incorporate (microseconds).
      */
     void update(uint64_t sample) {
+        std::lock_guard<std::mutex> lock(updateMutex_);
         uint64_t n    = ++count;
         uint64_t prev = mean.load(std::memory_order_relaxed);
         int64_t  delta = static_cast<int64_t>(sample) - static_cast<int64_t>(prev);
@@ -484,7 +497,13 @@ struct OnlineAverage {
     }
 
     /// Reset all statistics to zero.
-    void reset() { count = 0; mean = 0; max = 0; }
+    void reset() {
+        std::lock_guard<std::mutex> lock(updateMutex_);
+        count = 0; mean = 0; max = 0;
+    }
+
+private:
+    std::mutex updateMutex_;
 };
 
 // ─── BridgeController ─────────────────────────────────────────────────────────
@@ -572,6 +591,9 @@ public:
                 PostLog(hwnd_, m.str());
             } else {
                 PostLog(hwnd_, L"Control database: no JSON found (state-change labels disabled).");
+            }
+            if (!controlDb_.lastError().empty()) {
+                PostLog(hwnd_, L"Control database warning: " + Utf8ToWide(controlDb_.lastError()));
             }
         } else {
             loadedControlCount_ = 0;
@@ -873,8 +895,12 @@ private:
      */
     void PerformHandshake(SerialPort& serialPort) {
         auto ping = HandshakeParser::pingFrame();
-        DWORD written = 0;
-        WriteFile(serialPort.handle, ping.data(), static_cast<DWORD>(ping.size()), &written, nullptr);
+        if (!WriteAll(serialPort.handle, ping.data(), ping.size())) {
+            std::wstringstream m;
+            m << L"COM" << serialPort.comPort << L": handshake ping write failed (err "
+              << GetLastError() << L").";
+            PostLog(hwnd_, m.str());
+        }
 
         // Tighten timeouts for the handshake window to avoid stalling the
         // open sequence for the full kHandshakeTimeout on a legacy device.
@@ -902,9 +928,13 @@ private:
         if (completed) {
             parser.populateDevice(serialPort.info);
             auto ack = HandshakeParser::ackFrame();
-            WriteFile(serialPort.handle, ack.data(), static_cast<DWORD>(ack.size()), &written, nullptr);
+            if (!WriteAll(serialPort.handle, ack.data(), ack.size())) {
+                std::wstringstream m;
+                m << L"COM" << serialPort.comPort << L": handshake ack write failed.";
+                PostLog(hwnd_, m.str());
+            }
 
-            std::wstring name(serialPort.info.deviceName.begin(), serialPort.info.deviceName.end());
+            std::wstring name = Utf8ToWide(serialPort.info.deviceName);
             std::wstringstream m;
             m << L"COM" << serialPort.comPort << L": ";
             switch (serialPort.info.role) {
@@ -976,9 +1006,9 @@ private:
 
         serialPort->importParser.onCommand = [this, serialPort](const ImportCommand& cmd) {
             SendImportCommand(cmd);
-            std::wstring id(cmd.identifier.begin(), cmd.identifier.end());
-            std::wstring act(cmd.action.begin(), cmd.action.end());
-            std::wstring val(cmd.value.begin(), cmd.value.end());
+            std::wstring id  = Utf8ToWide(cmd.identifier);
+            std::wstring act = Utf8ToWide(cmd.action);
+            std::wstring val = Utf8ToWide(cmd.value);
             std::wstringstream m;
             m << L"COM" << serialPort->comPort << L" \u2192 DCS: " << id << L" " << act;
             if (!val.empty()) m << L" " << val;
@@ -1018,8 +1048,11 @@ private:
         };
         for (auto& sp : ports_) {
             if (sp->handle == INVALID_HANDLE_VALUE) continue;
-            DWORD written = 0;
-            WriteFile(sp->handle, frame, sizeof(frame), &written, nullptr);
+            if (!WriteAll(sp->handle, frame, sizeof(frame))) {
+                std::wstringstream m;
+                m << L"Mode frame write failed on COM" << sp->comPort << L".";
+                PostLog(hwnd_, m.str());
+            }
         }
     }
 
@@ -1645,7 +1678,7 @@ bool WriteUtf8File(const std::wstring& path, const std::wstring& content) {
     if (n <= 0) return false;
     std::string utf8(static_cast<size_t>(n - 1), '\0');
     WideCharToMultiByte(CP_UTF8, 0, content.c_str(), -1, utf8.data(), n, nullptr, nullptr);
-    std::ofstream out(path, std::ios::binary);
+    std::ofstream out(std::filesystem::path(path), std::ios::binary);
     if (!out.is_open()) return false;
     const unsigned char bom[] = {0xEF, 0xBB, 0xBF};
     out.write(reinterpret_cast<const char*>(bom), sizeof(bom));
@@ -2099,6 +2132,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                 s->pendingUiLineCount = 0;
             }
             if (s->controller) s->controller->Stop();
+            DrainLogMessages(hwnd);
             if (s->captureStream.is_open()) s->captureStream.close();
             UnregisterHotKey(hwnd, kHotkeyId);
             if (s->uiFont)      DeleteObject(s->uiFont);
@@ -2142,7 +2176,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow) {
     RegisterClassW(&wc);
 
     HWND hwnd = CreateWindowExW(
-        WS_EX_COMPOSITED, kClass, L"Hornet Link",
+        WS_EX_COMPOSITED, kClass, L"Hornet Link " HORNET_LINK_VERSION_W,
         WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
         CW_USEDEFAULT, CW_USEDEFAULT, 960, 600,
         nullptr, nullptr, hInstance, nullptr);

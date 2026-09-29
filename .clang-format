@@ -1,0 +1,17 @@
+---
+# Approximates the existing hand-formatted style. Apply to new or substantially
+# edited code only; the tree has not been mass-reformatted.
+BasedOnStyle: LLVM
+Language: Cpp
+Standard: c++17
+IndentWidth: 4
+ColumnLimit: 100
+AccessModifierOffset: -4
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: WithoutElse
+AllowShortCaseLabelsOnASingleLine: true
+AlignConsecutiveAssignments: Consecutive
+AlignTrailingComments: true
+PointerAlignment: Left
+SortIncludes: Never
+...
