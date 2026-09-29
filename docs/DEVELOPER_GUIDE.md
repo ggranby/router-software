@@ -35,6 +35,7 @@ The following capabilities are present in the repository:
   bidirectional import commands.
 - Device-name-based profile lookup, built-in panel templates, and persisted
   per-device profile overrides.
+- Basic source and COM-port preferences persisted beside the executable.
 - RS-485 master/slave firmware, dynamic slave discovery, keep-alive handling,
   and mode messages.
 - Runtime log-channel controls, bounded UI/log buffers, capture-to-disk, dry-run
