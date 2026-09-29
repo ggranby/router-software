@@ -17,9 +17,9 @@
 
 #pragma once
 
-#include "src/HornetLinkBase.h"
-#include "src/HornetLinkMode.h"
-#include "src/HornetLinkMaster.h"
-#include "src/HornetLinkSlave.h"
-#include "src/HornetLinkImport.h"
-#include "src/HornetLinkCompatDcsBios.h"
+#include "HornetLinkBase.h"
+#include "HornetLinkMode.h"
+#include "HornetLinkMaster.h"
+#include "HornetLinkSlave.h"
+#include "HornetLinkImport.h"
+#include "HornetLinkCompatDcsBios.h"

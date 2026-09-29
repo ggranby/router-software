@@ -23,6 +23,8 @@ in `libraries/HornetLink/library.properties`.
 - UI strings containing non-ASCII characters are compiled as UTF-8 on MSVC.
 - `library.properties` is now in the `key=value` format the Arduino tooling
   expects, with the correct repository URL.
+  `HornetLink.h` moved into `src/` so the library installs and resolves as a
+  standard Arduino 1.5 library; CI no longer injects include paths manually.
 
 ### Added
 - Unit tests run in CI on Windows (MSVC) and Linux (GCC with ASan/UBSan) and
