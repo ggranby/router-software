@@ -1,182 +1,173 @@
-# Hornet Link — Developer Guide
+# Hornet Link — Development Guide
 
-This guide covers how to build, extend, and debug the Hornet Link PC bridge
-(`hornet-link.exe`).
+This is the authoritative guide to the project's current development status,
+supported workflows, known constraints, and future work. It replaces the
+older status and incomplete-items inventories. Protocol details and API
+contracts remain in the linked reference documents.
 
----
+## Project at a glance
 
-## Prerequisites
+Hornet Link is a Windows C++ application and Arduino library that carry DCS
+cockpit data to physical panels. The PC bridge receives DCS-BIOS data via UDP
+or TCP, direct Lua-exported UDP, or a binary replay; parses it into simulator
+state; and sends subscribed updates to serial-connected devices. Devices can
+forward control inputs back to DCS, and an RS-485 master can serve downstream
+panels.
 
-| Tool | Minimum version | Notes |
-|------|-----------------|-------|
-| Visual Studio 2022 | 17.x | MSVC toolchain; C++17 |
-| CMake | 3.15 | Bundled with VS2022 |
-| Git | any | For cloning |
-| Python 3 | 3.8+ | Optional — `tools/connect-logger.py` |
+The repository contains:
 
----
+- `Programs/dcsbios-serial-bridge/` — Windows GUI bridge and simulator sources.
+- `libraries/HornetLink/` and `sketches/` — Arduino library and example firmware.
+- `Programs/dcsbios-serial-bridge/lua/` — DCS Lua exporter and aircraft module.
+- `tests/` — C++ protocol and bridge unit tests, plus a manual integration plan.
+- `docs/` — architecture, protocol, API, firmware, and release references.
 
-## Building
+For component relationships and data flow, see [ARCHITECTURE.md](ARCHITECTURE.md).
+Wire formats are described in [PROTOCOL_REFERENCE.md](PROTOCOL_REFERENCE.md).
+
+## Current implementation
+
+The following capabilities are present in the repository:
+
+- Windows bridge with DCS-BIOS UDP multicast/TCP, direct Lua UDP, and replay
+  sources; MSFS is a placeholder, not a working source.
+- Serial multi-port output, device handshake, subscription filtering, and
+  bidirectional import commands.
+- Device-name-based profile lookup, built-in panel templates, and persisted
+  per-device profile overrides.
+- RS-485 master/slave firmware, dynamic slave discovery, keep-alive handling,
+  and mode messages.
+- Runtime log-channel controls, bounded UI/log buffers, capture-to-disk, dry-run
+  mode, startup options, and operator diagnostics.
+- CMake-based C++ unit tests and CI jobs for the Windows app, Arduino sketches,
+  static analysis, and documentation generation.
+
+These are implementation facts, not a claim that every hardware combination
+or long-running workload has been validated. The test plan includes manual
+simulator and hardware scenarios; consult CI and run the relevant hardware
+checks before treating a change as release-ready.
+
+## Constraints and known issues
+
+- The bridge is Windows-only and depends on Windows APIs for its GUI, sockets,
+  and serial ports.
+- Full DCS cockpit data requires DCS-BIOS. The Lua exporter's fallback heartbeat
+  is only for connectivity checks.
+- `MsfsSource` is a stub. MSFS integration needs a deliberate variable/address
+  mapping design as well as simulator API integration; the DCS-BIOS 64 KiB
+  address map cannot be assumed to represent MSFS variables.
+- Profiles currently rely on the device-reported name. Stable board identity,
+  reconnect tracking across COM-port renumbering, and a full board-to-panel
+  assignment workflow are not implemented.
+- A UI status-text flicker under high log throughput is listed in
+  `Programs/dcsbios-serial-bridge/known-bugs.md`. Reproduce and verify it before
+  treating the report as a current regression.
+
+## Build and test
+
+### Requirements
+
+- Windows 10 or later
+- Visual Studio 2022 / MSVC C++ build tools
+- CMake 3.20 or later
+
+### Build the bridge
+
+From `Programs/dcsbios-serial-bridge/`:
 
 ```powershell
-cd Programs\dcsbios-serial-bridge
 cmake -S . -B build
 cmake --build build --config Release
-# Executable: build\Release\hornet-link.exe
 ```
 
-For a Debug build (enables ASAN on MSVC 2022):
+The executable is `build/Release/hornet-link.exe`. The optional ImGui prototype
+is not the production UI and requires the separately provisioned ImGui source.
+
+### Build and run C++ tests
+
+From the repository root:
 
 ```powershell
-cmake --build build --config Debug
+cmake -S tests -B tests/build
+cmake --build tests/build --config Release
+ctest --test-dir tests/build -C Release --output-on-failure
 ```
 
----
+The test executable exercises parser, handshake, frame generation, and RS-485
+protocol behavior. Hardware and simulator integration scenarios are described
+in `tests/test-plan.yaml` and require their listed prerequisites.
 
-## Project Layout
+### Arduino checks
 
-```
-Programs/dcsbios-serial-bridge/
-├── CMakeLists.txt          — build definition
-├── src/
-│   ├── main.cpp            — Win32 UI + BridgeController orchestrator
-│   ├── BiosProtocol.hpp    — DCS-BIOS export parser + BiosStateMap
-│   ├── DeviceRegistry.hpp  — device metadata, handshake, delta builder
-│   ├── ControlDatabase.hpp — address→descriptor lookup
-│   ├── SimSource.hpp       — ISimSource interface
-│   ├── DcsDirectSource.hpp — Lua UDP back-end (port 42002)
-│   ├── DcsBiosSource.hpp   — DCS-BIOS UDP/TCP back-end
-│   ├── ReplayFileSource.hpp— binary replay back-end
-│   ├── MsfsSource.hpp      — MSFS 2024 stub
-│   ├── ProfileStore.hpp    — JSON device profile persistence
-│   └── RS485ProtocolSpec.hpp — RS-485 constants + CRC + frame helpers
-├── templates/
-│   └── panels.json         — built-in OpenHornet panel templates
-└── build/                  — CMake output (git-ignored)
-```
+CI compiles the Mega 2560 master, Pro Micro slave, and ESP32 master sketches
+with `arduino-cli`. When changing shared firmware code, run those board builds
+or verify the corresponding CI job. The exact CI commands and board targets are
+in `.github/workflows/ci.yml`.
 
----
+## Working on the project
 
-## Adding a New Simulator Back-End
+- Keep the UI, source/transport, protocol, and firmware responsibilities clear;
+  use [ARCHITECTURE.md](ARCHITECTURE.md) before changing cross-component flow.
+- Preserve existing wire formats unless a protocol change is intentional.
+  Update [PROTOCOL_REFERENCE.md](PROTOCOL_REFERENCE.md), firmware, and tests
+  together when changing one.
+- Add or update automated tests for protocol and state-processing behavior.
+  Mark hardware-only verification explicitly rather than implying it is covered
+  by unit tests.
+- Keep operator-facing setup and release instructions aligned with
+  [README.md](../README.md) and [RELEASE_PROCESS.md](RELEASE_PROCESS.md).
 
-1. Create a new header `src/MySimSource.hpp`.
-2. Include `SimSource.hpp` and implement `ISimSource`:
+## Future work
 
-```cpp
-class MySimSource : public ISimSource {
-public:
-    bool connect(BiosStateMap& stateMap, HWND hwnd) override { ... }
-    void disconnect() override { ... }
-    bool isConnected() const override { return running_; }
-    void sendImport(const ImportCommand& cmd) override { ... }
-    std::wstring displayName() const override { return L"My Source"; }
-    // onFrameSync is a std::function<void(dirty)> field — set it in connect().
-};
-```
+This is the single prioritized backlog. Items are proposals, not commitments or
+release dates; adjust priority when requirements or hardware evidence change.
 
-3. Add a `SimSourceType::MySource` enum value in `main.cpp`.
-4. Add a `case SimSourceType::MySource:` in `BridgeController::Start()`.
-5. Add a combo-box entry in the `WM_CREATE` handler and a matching `case` in `ToggleBridge()`.
-6. Add the header to `CMakeLists.txt` sources list.
+### 1. Validate long-session behavior and UI status reporting
 
----
+The code already has log-channel controls, bounded buffers, capture-to-disk,
+and runtime metrics. The remaining task is to validate them under representative
+loads and resolve the reported status-text flicker if it is reproducible.
 
-## Adding a New Panel Template
+**Done when:** idle, switch-heavy, knob-heavy, and gauge-heavy sessions complete
+without UI freezes or unbounded queue growth; dropped lines and capture output
+are understood; any confirmed flicker has a regression check or documented
+resolution.
 
-Edit `templates/panels.json`.  Each entry in `"panels"` has:
+### 2. Add stable board identity and explicit panel assignment
 
-```json
-{
-  "id": "MY_PANEL",
-  "name": "My Panel",
-  "description": "...",
-  "subscriptions": [
-    { "addr": 4096, "mask": 65535, "shift": 0, "label": "SOME_FIELD" }
-  ]
-}
-```
+Build on the existing device-name profiles rather than duplicating them. Define
+which identity fields are available and reliable, track reconnects and port
+renumbering, and provide user confirmation when a board-to-panel match is
+ambiguous. Keep current profile-by-name behavior working as a fallback.
 
-`addr` is decimal.  The template is automatically loaded by `ProfileStore` as a
-fallback when no user override exists for a matching device name.
+**Done when:** users can review and persist board-to-panel assignments, restore
+them after reconnects or port changes when identity is reliable, and resolve
+uncertain matches explicitly without silent remapping.
 
----
+### 3. Decide and implement an MSFS integration
 
-## Logging Architecture
+Choose an integration API and establish how MSFS variables map to device
+subscriptions and import commands before implementing the source. Avoid
+silently treating MSFS variables as DCS-BIOS addresses.
 
-All log output goes through `PostLog(hwnd, text)` which posts a `WM_USER`
-message to the UI thread.  The UI thread appends to the read-only `EDIT` control.
+**Done when:** the chosen API, SDK/dependency requirements, mapping model, and
+supported variables are documented; the source reports connection failures
+clearly, updates state through the bridge, and has tests for both state and
+import paths.
 
-Log verbosity is controlled by four `std::atomic<bool>` flags in `BridgeController`:
+### 4. Reassess hardware abstraction
 
-| Flag | Default | Controls |
-|------|---------|---------|
-| `liveLogChanges_` | off | Per-frame dirty-address lines |
-| `liveLogRawKnobs_` | on | Raw knob/dial import commands |
-| `liveLogRawGauges_` | off | Raw gauge analogue values |
-| `liveLogDiagnostics_` | off | Connection events, reconnects |
+After board identity and panel assignment requirements are understood, decide
+whether configurable serial framing or support for additional hardware is
+needed. Avoid adding speculative transports or configuration layers before
+there is a concrete device requirement.
 
-Call `SetLoggingFlags(changes, knobs, gauges, diagnostics)` from the UI thread to
-update all four atomically.
+**Done when:** supported hardware and compatibility behavior are documented,
+and each added adapter has a testable contract and appropriate hardware checks.
 
----
+## Related references
 
-## Capture and Replay
-
-To record a session for replay:
-
-1. Click **Start Capture** in the UI.  A binary file is created in the executable
-   directory with a timestamp name (`capture_YYYYMMDD_HHMMSS.bin`).
-2. Click **Stop Capture** to flush and close the file.
-3. To replay: select **Replay File…** from the Source combo, click **Start**,
-   and choose the `.bin` file.
-
-Binary format: `[timestamp_ms:u32LE][payload_len:u16LE][payload:N]`.
-
----
-
-## COM Port Auto-Detection
-
-`DetectAvailableComPorts()` in `main.cpp` enumerates `HKEY_LOCAL_MACHINE\HARDWARE\
-DEVICEMAP\SERIALCOMM` and returns all present port names.  The result populates
-the ports field when **Auto Detect** is clicked or when the ports field is empty
-at bridge start.
-
----
-
-## Metrics and Performance
-
-`BridgeController` tracks two `OnlineAverage` metrics:
-
-- **Dispatch latency** — wall-clock time from `onFrameSync()` entry to last
-  `WriteFile()` completion per frame.
-- **Port write latency** — per-port `WriteFile()` wall-clock time.
-
-These are logged periodically when `liveLogDiagnostics_` is on.  Target dispatch
-latency is < 2 ms per frame at 30 Hz.
-
----
-
-## Known Limitations and Future Work
-
-- `MsfsSource` is a stub — no SimConnect or FSUIPC integration yet.
-- The Lua exporter (`HornetLinkExport.lua`) intercepts `ExportReceiveData` which
-  is only available when DCS-BIOS is also installed.  The fallback synthetic frame
-  at address 0x0000 is a heartbeat only and carries no useful cockpit data.
-- `ControlDatabase` is populated from a JSON file that must match the DCS-BIOS
-  `control_reference.json` format.  Distribution of that file is not included in
-  this repository.
-- RS-485 bus probe uses a fixed 100 ms round-trip poll.  Future work: adaptive
-  polling based on observed slave response times.
-
----
-
-## Debugging Tips
-
-- **No data arriving**: Check that `HornetLinkExport.lua` is sourced from `Export.lua`
-  and that port 42002 is not blocked by a firewall.
-- **COM port won't open**: Another process (e.g. Arduino IDE serial monitor) may
-  hold the port.  Use `mode COMX` in cmd.exe to verify port existence.
-- **Handshake not completing**: Enable **Log Diagnostics** to see probe/pong timing.
-  If no pong arrives within 300 ms the device is treated as legacy.
-- **High dispatch latency**: Check for `WriteFile()` blocking.  Try reducing
-  the COM port write timeout (constant `kSerialWriteTimeoutMs = 50` in `main.cpp`).
+- [API_REFERENCE.md](API_REFERENCE.md) — public C++ types and interfaces.
+- [FIRMWARE_GUIDE.md](FIRMWARE_GUIDE.md) — Arduino library and sketches.
+- [RELEASE_PROCESS.md](RELEASE_PROCESS.md) — packaging and publishing.
+- [RESUME_GUIDE.md](RESUME_GUIDE.md) — short handoff entry point.
