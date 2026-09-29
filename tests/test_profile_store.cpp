@@ -149,7 +149,7 @@ void registerProfileStoreTests() {
     addTest(suite, "Template names decode Unicode escapes without collisions", []() {
         ProfileStore store;
         EXPECT_EQ(store.parseTemplates(
-            R"({"\u00e9":{"subscriptions":[1]},"\u00e8":{"subscriptions":[2]},"\ud83d\ude00":{"subscriptions":[3]}})"),
+            "{\"\\u00e9\":{\"subscriptions\":[1]},\"\\u00e8\":{\"subscriptions\":[2]},\"\\ud83d\\ude00\":{\"subscriptions\":[3]}}"),
             size_t(3));
         EXPECT_TRUE(store.templateSubscriptions(u8"é").value_or(std::vector<uint16_t>{}) ==
                     std::vector<uint16_t>{1});
@@ -158,7 +158,7 @@ void registerProfileStoreTests() {
         EXPECT_TRUE(store.templateSubscriptions(u8"😀").value_or(std::vector<uint16_t>{}) ==
                     std::vector<uint16_t>{3});
 
-        EXPECT_EQ(store.parseTemplates(R"({"\ud83d":{"subscriptions":[]}})"), size_t(0));
+        EXPECT_EQ(store.parseTemplates("{\"\\ud83d\":{\"subscriptions\":[]}}"), size_t(0));
         EXPECT_TRUE(!store.lastError().empty());
     });
 }

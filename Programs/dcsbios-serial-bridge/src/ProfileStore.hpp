@@ -65,6 +65,13 @@
 #include <unordered_map>
 #include <vector>
 
+#ifdef _WIN32
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#endif
+
 namespace dcsbios {
 
 /// Upper bound on profile/template JSON file size; larger files are rejected.
@@ -641,9 +648,15 @@ private:
         }
 
         // Replace the original only after the temp file is complete.
+#ifdef _WIN32
+        if (!MoveFileExW(tmp.c_str(), path.c_str(),
+                         MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH)) {
+            const std::error_code ec(static_cast<int>(GetLastError()), std::system_category());
+#else
         std::error_code ec;
         std::filesystem::rename(tmp, path, ec);
         if (ec) {
+#endif
             lastError_ = "cannot replace " + path.u8string() + ": " + ec.message();
             std::error_code ignored;
             std::filesystem::remove(tmp, ignored);
