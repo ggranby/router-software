@@ -137,8 +137,8 @@ HL_FLAG_RS485_MASTER | HL_FLAG_BIDIR
   bandwidth.
 - Subscribe only to the addresses your panel actually displays.  This reduces
   serial traffic and processing time on the microcontroller.
-- The bridge caches per-device subscription lists in `device_profiles.json` so
-  they persist across sessions.
+- Per-device subscription caching in `device_profiles.json` is planned but not
+  yet active in the bridge; the subscriptions sent in the pong are always used.
 
 ---
 
