@@ -95,8 +95,10 @@ ctest --test-dir tests/build -C Release --output-on-failure
 ```
 
 The test executable exercises parser, handshake, frame generation, and RS-485
-protocol behavior. Hardware and simulator integration scenarios are described
-in `tests/test-plan.yaml` and require their listed prerequisites.
+protocol behavior. CI runs these same steps in the `unit-tests` job, and the
+Windows app build only runs after the tests pass. Hardware and simulator
+integration scenarios are described in `tests/test-plan.yaml` and require their
+listed prerequisites.
 
 ### Arduino checks
 

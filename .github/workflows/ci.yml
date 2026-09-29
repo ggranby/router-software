@@ -5,17 +5,39 @@ on:
     branches: [ main, develop ]
     paths:
       - 'Programs/dcsbios-serial-bridge/**'
+      - 'tests/**'
       - '.github/workflows/ci.yml'
   pull_request:
     branches: [ main ]
     paths:
       - 'Programs/dcsbios-serial-bridge/**'
+      - 'tests/**'
+      - '.github/workflows/ci.yml'
 
 jobs:
+  # ── C++ unit tests ─────────────────────────────────────────────────────────
+  unit-tests:
+    name: Unit tests (Windows / MSVC)
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure CMake
+        run: cmake -S tests -B tests/build -G "Visual Studio 17 2022" -A x64
+
+      - name: Build tests
+        run: cmake --build tests/build --config Release
+
+      - name: Run tests
+        run: ctest --test-dir tests/build -C Release --output-on-failure
+
   # ── Windows MSVC build ─────────────────────────────────────────────────────
   build-windows:
     name: Build (Windows / MSVC)
     runs-on: windows-2022
+    needs: unit-tests
 
     steps:
       - name: Checkout

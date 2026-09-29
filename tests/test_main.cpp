@@ -3,6 +3,7 @@
 #include <string>
 #include <functional>
 #include <stdexcept>
+#include <cstring>
 #include "BiosProtocol.hpp"
 #include "DeviceRegistry.hpp"
 #include "ControlDatabase.hpp"
