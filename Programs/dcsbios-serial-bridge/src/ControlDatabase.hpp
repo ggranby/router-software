@@ -355,7 +355,7 @@ inline uint32_t ReadControlValue(const ControlDescriptor& desc, const BiosStateM
     if (desc.isString) {
         uint32_t hash = 2166136261u;
         for (uint16_t i = 0; i < desc.strLen; ++i) {
-            char ch = static_cast<char>(state.raw()[desc.byteAddr + i]);
+            char ch = static_cast<char>(state.byteAt(static_cast<size_t>(desc.byteAddr) + i));
             if (ch == 0) break;
             hash ^= static_cast<uint8_t>(ch);
             hash *= 16777619u;
@@ -385,24 +385,19 @@ inline std::wstring FormatWireStateChange(const ControlDescriptor& desc, const B
         return std::wstring(value.begin(), value.end());
     };
 
-    wchar_t buf[512];
+    std::wstring line = toWide(desc.identifier) + L" SET_STATE ";
     if (desc.isString) {
         std::string s;
         for (uint16_t i = 0; i < desc.strLen; ++i) {
-            char ch = static_cast<char>(state.raw()[desc.byteAddr + i]);
+            char ch = static_cast<char>(state.byteAt(static_cast<size_t>(desc.byteAddr) + i));
             if (ch == 0) break;
             s += ch;
         }
-
-        std::wstring id = toWide(desc.identifier);
-        std::wstring ws(s.begin(), s.end());
-        swprintf_s(buf, L"%s SET_STATE \"%s\"", id.c_str(), ws.c_str());
+        line += L"\"" + toWide(s) + L"\"";
     } else {
-        uint32_t val = ReadControlValue(desc, state);
-        std::wstring id = toWide(desc.identifier);
-        swprintf_s(buf, L"%s SET_STATE %u", id.c_str(), static_cast<unsigned>(val));
+        line += std::to_wstring(ReadControlValue(desc, state));
     }
-    return buf;
+    return line;
 }
 
 /**

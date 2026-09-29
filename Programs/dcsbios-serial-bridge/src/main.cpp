@@ -94,7 +94,6 @@ constexpr auto   kLogStartupSettleWindow = std::chrono::seconds(15);
 /// even when no export data is arriving (e.g. while DCS is in the menu).
 constexpr DWORD  kSocketReceiveTimeoutMs = 5000;
 constexpr int kHotkeyId  = 1;
-constexpr int kLogMessage          = WM_APP + 1;
 constexpr int kBridgeStoppedMessage = WM_APP + 2;
 constexpr UINT_PTR kLogFlushTimer = 42;
 constexpr UINT_PTR kStatusRefreshTimer = 43;
@@ -215,8 +214,7 @@ void PostLog(HWND hwnd, const std::wstring& message) {
     localtime_s(&timeinfo, &time);
     wchar_t timestamp[32];
     wcsftime(timestamp, sizeof(timestamp) / sizeof(wchar_t), L"[%H:%M:%S]", &timeinfo);
-    auto* payload = new std::wstring(std::wstring(timestamp) + L" " + message + L"\r\n");
-    PostMessage(hwnd, kLogMessage, 0, reinterpret_cast<LPARAM>(payload));
+    PostLogLine(hwnd, std::wstring(timestamp) + L" " + message + L"\r\n");
 }
 
 std::wstring Trim(const std::wstring& input) {
@@ -1645,7 +1643,7 @@ bool WriteUtf8File(const std::wstring& path, const std::wstring& content) {
     if (n <= 0) return false;
     std::string utf8(static_cast<size_t>(n - 1), '\0');
     WideCharToMultiByte(CP_UTF8, 0, content.c_str(), -1, utf8.data(), n, nullptr, nullptr);
-    std::ofstream out(path, std::ios::binary);
+    std::ofstream out(std::filesystem::path(path), std::ios::binary);
     if (!out.is_open()) return false;
     const unsigned char bom[] = {0xEF, 0xBB, 0xBF};
     out.write(reinterpret_cast<const char*>(bom), sizeof(bom));
@@ -2099,6 +2097,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
                 s->pendingUiLineCount = 0;
             }
             if (s->controller) s->controller->Stop();
+            DrainLogMessages(hwnd);
             if (s->captureStream.is_open()) s->captureStream.close();
             UnregisterHotKey(hwnd, kHotkeyId);
             if (s->uiFont)      DeleteObject(s->uiFont);

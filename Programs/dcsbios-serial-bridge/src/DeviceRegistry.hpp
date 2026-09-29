@@ -580,9 +580,9 @@ inline std::vector<uint8_t> BuildDeltaFrame(
         frame.push_back(lenBytes & 0xFF);
         frame.push_back((lenBytes >> 8) & 0xFF);
         for (uint16_t w = 0; w < runWords; ++w) {
-            uint16_t a = runStart + w * 2;
-            frame.push_back(state.raw()[a]);
-            frame.push_back(state.raw()[a + 1]);
+            size_t a = static_cast<size_t>(runStart) + static_cast<size_t>(w) * 2;
+            frame.push_back(state.byteAt(a));
+            frame.push_back(state.byteAt(a + 1));
         }
         i = j + 1;
     }
