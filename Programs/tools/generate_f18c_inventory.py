@@ -54,8 +54,8 @@ def render_inventory(reference_path, version):
     strings_count = sum(output.get("type") == "string" for output in outputs)
     integers_count = sum(output.get("type") == "integer" for output in outputs)
     source_url = (
-        "https://github.com/DCS-Skunkworks/dcs-bios/blob/"
-        f"{version}/Scripts/DCS-BIOS/doc/json/FA-18C_hornet.json"
+        "https://github.com/DCS-Skunkworks/dcs-bios/releases/"
+        f"tag/{version}"
     )
 
     lines = [
@@ -71,8 +71,18 @@ def render_inventory(reference_path, version):
         "**Output only (no documented input)**. This describes DCS-BIOS metadata, "
         "not proof that every input works in every DCS context.",
         "",
-        f"Reference: [{source_url}]({source_url})  ",
+        f"Reference: [DCS-BIOS {version} release]({source_url}), "
+        "`DCS-BIOS/doc/json/FA-18C_hornet.json` in the release archive.",
         f"SHA-256 of the exact JSON input: `{hashlib.sha256(raw).hexdigest()}`",
+        "",
+        "Regenerate the baseline after extracting that JSON file from a chosen "
+        "DCS-BIOS release:",
+        "",
+        "```sh",
+        "python3 Programs/tools/generate_f18c_inventory.py "
+        "/path/to/FA-18C_hornet.json --version vX.Y.Z "
+        "--output docs/F18C_EXPORT_INVENTORY.md",
+        "```",
         "",
         "## Coverage",
         "",
@@ -94,8 +104,8 @@ def render_inventory(reference_path, version):
         lines.extend([
             f"### {group}",
             "",
-            "| Control | Description / kind | Interaction | DCS-BIOS output reference |",
-            "|---|---|---|---|",
+            "| Control | Description / kind | Interaction | DCS-BIOS output reference | Native DCS evidence |",
+            "|---|---|---|---|---|",
         ])
         for identifier, control in entries.items():
             inputs = control.get("inputs", [])
@@ -111,7 +121,7 @@ def render_inventory(reference_path, version):
             output_text = "<br>".join(render_output(item) for item in output_items)
             if not output_text:
                 output_text = "No output descriptor in this reference"
-            cells = (identifier, desc, interaction, output_text)
+            cells = (identifier, desc, interaction, output_text, "Not verified")
             lines.append("| " + " | ".join(
                 cell.replace("|", r"\|").replace("\n", "<br>") for cell in cells
             ) + " |")

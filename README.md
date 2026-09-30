@@ -144,6 +144,10 @@ See [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) for the current
 development status, build and test instructions, known constraints, and
 prioritized future-work backlog.
 
+See the [F/A-18C export inventory](docs/F18C_EXPORT_INVENTORY.md) for a
+versioned, equipment-grouped catalog of Hornet controls and outputs, including
+the verification path for future native DCS export evidence.
+
 ## Dependencies
 
 ### DCS-BIOS (Required for full cockpit data)
