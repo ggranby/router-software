@@ -195,27 +195,36 @@ private:
     void handleConfig(const FrameHeader& h, const uint8_t* p, size_t n) {
         if (h.dst == ADDR_BROADCAST) return; // settings are always addressed
         uint8_t reason = 0;
+        uint8_t newAddress = 0;
         if (n >= 2 && p[0] == CFG_BUS_ADDRESS) {
             if (transport_ != Transport::Bus || p[1] < ADDR_FIRST_SLAVE || p[1] > ADDR_LAST_SLAVE) reason = NACK_BAD_VALUE;
-            else pendingAddress_ = p[1]; // applied after the ACK went out from the old address
+            else newAddress = p[1]; // applied after the ACK went out from the old address
         } else if (n >= 1) {
             reason = handler_.onConfig(p, n);
         } else {
             reason = NACK_BAD_FRAME;
         }
         if (reason) lastError_ = reason;
-        nackOrAck(h.seq, reason, 0);
+        nackOrAck(h.seq, reason, 0, newAddress);
     }
 
-    void nackOrAck(uint8_t seq, uint8_t reason, uint16_t id) {
+    void nackOrAck(uint8_t seq, uint8_t reason, uint16_t id, uint8_t newAddress = 0) {
         reply_[0] = seq;
-        if (!reason) { queueReply(MSG_ACK, 1); return; }
+        if (!reason) { queueReply(MSG_ACK, 1, newAddress); return; }
         reply_[1] = reason;
         putU16(reply_ + 2, id);
         queueReply(MSG_NACK, 4);
     }
 
-    void queueReply(uint8_t type, uint8_t len) { replyType_ = type; replyLen_ = len; }
+    void queueReply(uint8_t type, uint8_t len, uint8_t newAddress = 0) {
+        if (replyCount_ >= kReplyQueue) return;
+        Reply& reply = replies_[(replyHead_ + replyCount_) % kReplyQueue];
+        reply.type = type;
+        reply.len = len;
+        reply.newAddress = newAddress;
+        memcpy(reply.payload, reply_, len);
+        replyCount_++;
+    }
 
     void completeInFlight() {
         inHead_ = static_cast<uint8_t>((inHead_ + inFlight_) % kInputQueue);
@@ -234,13 +243,13 @@ private:
     // ── Transmit ──────────────────────────────────────────────────────────
     /// Send the most important pending frame. Returns false if nothing was due.
     bool sendNext(bool polled) {
-        if (replyType_) {
-            const uint8_t t = replyType_;
-            replyType_ = 0;
-            sendSimple(t, reply_, replyLen_);
-            if (pendingAddress_) {
-                address_ = pendingAddress_;
-                pendingAddress_ = 0;
+        if (replyCount_) {
+            Reply& reply = replies_[replyHead_];
+            sendSimple(reply.type, reply.payload, reply.len);
+            replyHead_ = static_cast<uint8_t>((replyHead_ + 1) % kReplyQueue);
+            replyCount_--;
+            if (reply.newAddress) {
+                address_ = reply.newAddress;
                 handler_.onBusAddressChanged(address_);
             }
             return true;
@@ -356,7 +365,15 @@ private:
     FrameDecoder decoder_;
     Transport transport_ = Transport::Usb;
     uint8_t address_ = ADDR_LINK_NODE;
-    uint8_t pendingAddress_ = 0;
+    static constexpr uint8_t kReplyQueue = 4;
+    struct Reply {
+        uint8_t type = 0;
+        uint8_t len = 0;
+        uint8_t newAddress = 0;
+        uint8_t payload[4] = {};
+    };
+    Reply replies_[kReplyQueue];
+    uint8_t replyHead_ = 0, replyCount_ = 0;
     uint32_t now_ = 0;
     uint8_t seq_ = 0;
 
@@ -370,7 +387,6 @@ private:
     uint8_t describePage_ = 0;
     uint16_t syncCursor_ = 0;
 
-    uint8_t replyType_ = 0, replyLen_ = 0;
     uint8_t reply_[4] = {};
 
     bool everPolled_ = false, discoverPending_ = false;

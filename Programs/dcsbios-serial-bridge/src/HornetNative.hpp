@@ -25,6 +25,7 @@
 #include "protocol/HnRecords.h"
 
 #include <cstdint>
+#include <chrono>
 #include <cstdio>
 #include <functional>
 #include <map>
@@ -519,6 +520,7 @@ struct NodeInfo {
  */
 class LinkSession {
 public:
+    static constexpr uint32_t kInputRetryWindowMs = 1000;
     std::function<void(const uint8_t*, size_t)> write;              ///< bytes to the COM port
     std::function<void(uint8_t src, const hn::InputRecord&)> onInput; ///< validated input, forward to DCS
     std::function<void(const std::string&)> log;
@@ -621,7 +623,7 @@ private:
                 } else if (p[0] == hn::BUS_DROP) {
                     auto it = nodes_.find(p[1]);
                     if (it != nodes_.end()) it->second.online = false;
-                    dedup_.forget(p[1]);
+                    lastInputMs_[p[1]] = 0;
                 }
             }
             break;
@@ -647,7 +649,12 @@ private:
             hn::putU16(b + 2, nackId);
             send(h.src, hn::MSG_NACK, b, 4);
         } else {
-            const bool fresh = dedup_.accept(h.src, h.seq);
+            const uint32_t now = inputNowMs();
+            const bool fresh = lastInputSeq_[h.src] != h.seq ||
+                lastInputMs_[h.src] == 0 ||
+                now - lastInputMs_[h.src] >= kInputRetryWindowMs;
+            lastInputSeq_[h.src] = h.seq;
+            lastInputMs_[h.src] = now;
             if (fresh) {
                 rd = hn::InputReader(p, h.len);
                 while (rd.next(r)) {
@@ -662,8 +669,15 @@ private:
         }
     }
 
+    static uint32_t inputNowMs() {
+        using Clock = std::chrono::steady_clock;
+        return static_cast<uint32_t>(std::chrono::duration_cast<std::chrono::milliseconds>(
+            Clock::now().time_since_epoch()).count());
+    }
+
     hn::FrameDecoder dec_;
-    hn::DuplicateFilter dedup_;
+    uint8_t lastInputSeq_[256] = {};
+    uint32_t lastInputMs_[256] = {};
     std::map<uint8_t, NodeInfo> nodes_;
     uint8_t seq_ = 0;
     uint8_t mode_ = hn::MODE_SIM;

@@ -37,7 +37,7 @@ Button keyEnt(UFC::KeyEnt, keypad.key(3, 2));
 
 // ── Option select buttons and function keys on direct pins ────────────────
 #if defined(ESP32)
-Button os1(UFC::Os1, 0);
+Button os1(UFC::Os1, 16);
 Button os2(UFC::Os2, 2);
 Button os3(UFC::Os3, 4);
 Button os4(UFC::Os4, 5);

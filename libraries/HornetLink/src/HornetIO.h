@@ -113,7 +113,8 @@ public:
     void configure(uint8_t pin) override { ::pinMode(pin, INPUT_PULLUP); }
     bool closed(uint8_t pin) override { return ::digitalRead(pin) == LOW; }
     uint16_t read(uint8_t pin) override {
-        return static_cast<uint16_t>(static_cast<uint32_t>(::analogRead(pin)) << (16 - HORNET_ADC_BITS));
+        return static_cast<uint16_t>((static_cast<uint32_t>(::analogRead(pin)) * 65535UL) /
+                                     ((1UL << HORNET_ADC_BITS) - 1UL));
     }
 
     static DirectPins& instance() { static DirectPins p; return p; }
@@ -287,7 +288,8 @@ public:
 
     uint16_t read(uint8_t ch) override {
         select(ch);
-        return static_cast<uint16_t>(static_cast<uint32_t>(::analogRead(sig_)) << (16 - HORNET_ADC_BITS));
+        return static_cast<uint16_t>((static_cast<uint32_t>(::analogRead(sig_)) * 65535UL) /
+                                     ((1UL << HORNET_ADC_BITS) - 1UL));
     }
     void configure(uint8_t) override { select(0); }
     bool closed(uint8_t ch) override { return read(ch) < 16384; }

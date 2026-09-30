@@ -185,9 +185,10 @@ private:
             return;
         }
         case MSG_ACK:
-            if (pendingAddressOld_ && h.src == pendingAddressOld_) {
+            if (pendingAddressOld_ && h.src == pendingAddressOld_ &&
+                h.len >= 1 && p[0] == pendingAddressSeq_) {
                 if (SlaveStatus* old = find(pendingAddressOld_)) old->address = pendingAddressNew_;
-                pendingAddressOld_ = pendingAddressNew_ = 0;
+                pendingAddressOld_ = pendingAddressNew_ = pendingAddressSeq_ = 0;
             }
             forwardUp(h, p);
             return;
@@ -225,6 +226,7 @@ private:
                 p[1] >= ADDR_FIRST_SLAVE && p[1] <= ADDR_LAST_SLAVE) {
                 pendingAddressOld_ = h.dst;
                 pendingAddressNew_ = p[1];
+                pendingAddressSeq_ = h.seq;
             }
             queueDown(h.dst, h.type, h.seq, p, h.len, h.src);
         }
@@ -350,6 +352,7 @@ private:
     uint8_t slaveCount_ = 0;
     uint8_t pendingAddressOld_ = 0;
     uint8_t pendingAddressNew_ = 0;
+    uint8_t pendingAddressSeq_ = 0;
     uint8_t cursor_ = 0;
     BusState state_ = BusState::Idle;
     uint8_t awaiting_ = 0;

@@ -417,6 +417,8 @@ public:
     explicit BusMaster(const char* name) : name_(name), core_(usb_, bus_) {}
 
     bool addSlave(uint8_t address) { return core_.addSlave(address); }
+    /// Set a stable per-device id; otherwise hardware or EEPROM identity is used.
+    void setBoardId(const uint8_t id[8]) { memcpy(boardId_, id, 8); boardIdSet_ = true; }
     /// Also find boards that are not in the fixed list (broadcast discovery with random back-off).
     void enableDiscovery(bool on = true) { core_.enableDiscovery(on); }
 
@@ -426,9 +428,9 @@ public:
         busSerial.begin(busBaud);
         usb_.attach(&usbSerial, -1);
         bus_.attach(&busSerial, dePin);
+        loadBoardId();
         uint8_t id[8] = {};
-        const uint32_t h = detail::fnv(name_);
-        for (uint8_t i = 0; i < 4; i++) id[i] = static_cast<uint8_t>(h >> (8 * i));
+        memcpy(id, boardId_, sizeof(id));
         core_.setIdentity(name_, HORNET_FW_MAJOR, HORNET_FW_MINOR, id);
     }
 
@@ -436,10 +438,36 @@ public:
     const hn::BusMaster& core() const { return core_; }
 
 private:
+    void loadBoardId() {
+        if (boardIdSet_) return;
+#if defined(ESP32)
+        const uint64_t mac = ESP.getEfuseMac();
+        for (uint8_t i = 0; i < 8; i++) boardId_[i] = static_cast<uint8_t>(mac >> (8 * i));
+#elif defined(__AVR__) || defined(ARDUINO_GIGA)
+        const uint8_t magic = EEPROM.read(0);
+        if (magic == 0xA5) {
+            for (uint8_t i = 0; i < 8; i++) boardId_[i] = EEPROM.read(static_cast<int>(i + 1));
+        } else {
+            uint32_t seed = static_cast<uint32_t>(analogRead(A0)) ^ micros();
+            for (uint8_t i = 0; i < 8; i++) {
+                seed = seed * 1103515245UL + 12345UL;
+                boardId_[i] = static_cast<uint8_t>(seed >> 24);
+                EEPROM.update(static_cast<int>(i + 1), boardId_[i]);
+            }
+            EEPROM.update(0, 0xA5);
+        }
+#else
+        const uint32_t h = detail::fnv(name_);
+        for (uint8_t i = 0; i < 4; i++) boardId_[i] = static_cast<uint8_t>(h >> (8 * i));
+#endif
+    }
+
     const char* name_;
     StreamPort usb_;
     StreamPort bus_;
     hn::BusMaster core_;
+    uint8_t boardId_[8] = {};
+    bool boardIdSet_ = false;
 };
 
 } // namespace Hornet
