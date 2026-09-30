@@ -8,6 +8,43 @@ in `libraries/HornetLink/library.properties`.
 
 ## [Unreleased]
 
+### Added — Hornet-native protocol v2 (stage 1)
+- F/A-18C control catalogue (`catalog/fa18c.json`) with stable IDs, readable
+  names, types and position names. The generator
+  (`Programs/tools/generate_hornet_catalog.py`) turns it into the Arduino
+  header, the protocol constants, the native Lua exporter, the reference docs
+  and a catalogue hash.
+- Protocol v2: COBS framing with CRC-16, a polled RS-485 bus (no collisions),
+  one STATE broadcast for all slaves, typed inputs with ACK/NACK reasons,
+  duplicate detection and retry, SYNC, DIAG, CONFIG, fixed addresses with
+  optional discovery. See `docs/PROTOCOL_V2.md`.
+- Arduino API `Hornet.h`:
+  - Named elements: Switch, Selector, Button, Pot, Encoder, Lamp, Gauge,
+    TextDisplay. A wrong binding fails at compile time.
+  - IO sources: pins, 74HC165/595, MCP23017, matrix, CD4067.
+  - Built-in debounce, pot and encoder filters.
+  - USB, RS-485 and ASCII debug transports.
+  - Lamp test and wiring test.
+  - Five example sketches (`sketches/v2_*`).
+- `HornetLinkNative.lua` exporter. It doesn't need DCS-BIOS, works only in the
+  F/A-18C, and can be pasted into Export.lua.
+- Bridge-side v2 logic (`HornetNative.hpp`): exporter parser, input
+  validation, DCS-is-truth sync tracker with an optional overlay, readable
+  frame decoder, `LinkSession`. It is not yet wired into the bridge UI (stage 2).
+- Tests: a v2 unit suite including a simulated 3-slave bus, three fuzz
+  targets, a CI generator check, and v2 sketch builds for Leonardo, Mega,
+  ESP32 and Arduino Giga.
+
+### Changed
+- DCS device, argument and command data in the catalogue is temporarily taken
+  from DCS-BIOS. Every occurrence is listed in `docs/DCS_DATA_PROVENANCE.md`
+  and is to be replaced with data from a DCS install.
+- `HornetLinkCompatDcsBios.h` is deprecated.
+
+### Removed
+- The hand-written `lua/modules/FA-18C.lua` address map. It was inconsistent
+  with DCS-BIOS and unused; `catalog/fa18c.json` replaces it.
+
 ### Fixed
 - Export records near the end of the 64 KiB address space no longer write past
   the state map (network input).

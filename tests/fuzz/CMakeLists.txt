@@ -12,9 +12,12 @@ foreach(target
         fuzz_handshake
         fuzz_import_line
         fuzz_rs485_frame
-        fuzz_profile_store)
+        fuzz_profile_store
+        fuzz_hn_frame
+        fuzz_hn_link
+        fuzz_native_datagram)
     add_executable(${target} ${target}.cpp)
-    target_include_directories(${target} PRIVATE ${HORNET_LINK_SRC_DIR})
+    target_include_directories(${target} PRIVATE ${HORNET_LINK_SRC_DIR} ${HORNET_LINK_LIB_DIR})
     target_compile_options(${target} PRIVATE
         -fsanitize=fuzzer,address,undefined -fno-sanitize-recover=all -g)
     target_link_options(${target} PRIVATE -fsanitize=fuzzer,address,undefined)

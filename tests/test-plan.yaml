@@ -180,3 +180,69 @@ suites:
       - id: E2E_04
         name: "Mode change Sim → Maintenance disables import forwarding"
         expected: "Panel buttons send import lines but bridge does not forward to DCS"
+
+  # ─── Protocol v2 (Hornet-native) — automated ─────────────────────────────────
+  - id: hornet_v2_unit
+    name: "Protocol v2 — framing, records, catalogue, filters, simulated bus"
+    description: "Automated in tests/test_hornet_v2.cpp; fuzzed by fuzz_hn_frame, fuzz_hn_link, fuzz_native_datagram."
+    type: unit
+    cases:
+      - id: HNU_01
+        name: "CRC, COBS and frame decoder (corruption, oversize, resync)"
+        expected: "All 'Protocol v2 - CRC, COBS, frames' tests pass"
+      - id: HNU_02
+        name: "Simulated RS-485 bus, master + 3 slaves"
+        expected: "No slave transmits out of turn; inputs forwarded exactly once; drop/rejoin reported"
+      - id: HNU_03
+        name: "Generated files match catalog/*.json"
+        tool: "python3 Programs/tools/generate_hornet_catalog.py --check"
+        expected: "Exit code 0"
+
+  # ─── Protocol v2 (Hornet-native) — hardware and DCS, manual ──────────────────
+  # Hardware-only: none of these are covered by the unit tests. Steps marked
+  # (stage 2) need the bridge integration listed in docs/DEVELOPER_GUIDE.md.
+  - id: hornet_v2_hardware
+    name: "Protocol v2 — real boards and DCS"
+    type: hardware
+    prerequisites:
+      - "HornetLink library from this repository installed in the Arduino IDE"
+      - "For DCS cases: HornetLinkNative.lua installed via Saved Games/DCS/Scripts/Export.lua"
+    cases:
+      - id: HN_01
+        name: "First panel in ASCII debug mode (Pro Micro)"
+        steps: "Upload sketches/v2_first_panel; Serial Monitor 115200, Newline; flip switch; type MASTER_ARM.READY_LT=1"
+        expected: "MASTER_ARM.MASTER_ARM=ARM/SAFE printed; LED follows the typed value; MODE LAMP_TEST lights it"
+      - id: HN_02
+        name: "Pro Micro fits"
+        steps: "Compile v2_master_arm_panel and v2_caution_panel for Leonardo"
+        expected: "Flash < 28 KB, global RAM < 1.8 KB (leaves stack headroom)"
+      - id: HN_03
+        name: "RS-485 bus with 3 slaves (Mega or ESP32 master)"
+        steps: "v2_bus_master + three slave sketches at fixed addresses; scope or logic analyser on A/B"
+        expected: "Only one driver active at a time; POLL cycle ≈ 1 ms per idle slave; no CRC errors in DIAG after 10 min"
+      - id: HN_04
+        name: "Unplug and re-plug a slave"
+        expected: "BUS_EVENT DROP within ~100 ms; JOIN within ~1 s of re-plug; slave re-sends HELLO and SYNC_REPORT"
+      - id: HN_05
+        name: "Exporter only active in the F/A-18C (stage 2 for bridge display)"
+        steps: "Spawn in F/A-18C, then another aircraft"
+        expected: "Datagrams on UDP 42003 with active 1 in the Hornet, active 0 elsewhere; DCS log has no Lua errors"
+      - id: HN_06
+        name: "Inputs reach DCS without DCS-BIOS installed (stage 2)"
+        steps: "Uninstall DCS-BIOS; move Master Arm, press UFC keys, turn COMM 1 volume"
+        expected: "Cockpit responds; each action logged by name in the bridge"
+      - id: HN_07
+        name: "Sync on spawn — DCS wins (stage 2)"
+        steps: "Set Master Arm to ARM physically; spawn cold"
+        expected: "DCS stays SAFE; discrepancy list shows 'MASTER_ARM.MASTER_ARM: set SAFE (is ARM)' until the switch is moved; overlay hidden when the setting is off"
+      - id: HN_08
+        name: "Wiring test mode"
+        steps: "Select WIRING_TEST; actuate each element"
+        expected: "Bridge logs WIRING <node> <NAME> <position>; nothing is sent to DCS"
+      - id: HN_09
+        name: "Catalogue mismatch warning"
+        steps: "Flash a board built from an older catalogue"
+        expected: "Bridge warns that the board was built with a different control catalogue"
+      - id: HN_10
+        name: "Arduino Giga R1 and ESP32 run the UFC template"
+        expected: "Keys, knobs and scratchpad text work as on the Mega"

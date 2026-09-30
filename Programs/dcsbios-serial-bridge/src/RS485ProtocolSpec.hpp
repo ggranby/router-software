@@ -3,6 +3,10 @@
  * @file RS485ProtocolSpec.hpp
  * @brief Hornet Link RS485 sub-bus protocol constants and frame type documentation.
  *
+ * @note This is protocol v1 (DCS-BIOS based). Protocol v2 (Hornet-native) is
+ * generated from catalog/protocol_v2.json into
+ * libraries/HornetLink/src/protocol/HnSpec.h; see docs/PROTOCOL_V2.md.
+ *
  * @details
  * This header is the single authoritative source for all RS485 frame types,
  * addressing constants, timing parameters, and CRC specification used on the

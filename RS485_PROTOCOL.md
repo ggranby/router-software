@@ -4,6 +4,11 @@ This document is the authoritative specification for the RS-485 sub-bus protocol
 used between an RS-485 **master** Arduino board and its **slave** panel boards in
 the Hornet Link system.
 
+> **Protocol v1 (DCS-BIOS based).** A Hornet-native protocol v2 (COBS
+> framing, polled bus, named and typed controls, no DCS-BIOS needed) is
+> specified in [docs/PROTOCOL_V2.md](docs/PROTOCOL_V2.md). v1 stays supported
+> alongside v2 until v2 has been checked on real panels.
+
 ---
 
 ## Overview

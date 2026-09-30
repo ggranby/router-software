@@ -18,7 +18,10 @@ The repository contains:
 
 - `Programs/dcsbios-serial-bridge/` — Windows GUI bridge and simulator sources.
 - `libraries/HornetLink/` and `sketches/` — Arduino library and example firmware.
-- `Programs/dcsbios-serial-bridge/lua/` — DCS Lua exporter and aircraft module.
+- `Programs/dcsbios-serial-bridge/lua/` — DCS Lua exporters (DCS-BIOS forwarder and the
+  generated Hornet-native exporter).
+- `catalog/` — the F/A-18C control catalogue and protocol v2 spec (sources of truth
+  for generated code and docs).
 - `tests/` — C++ protocol and bridge unit tests, plus a manual integration plan.
 - `docs/` — architecture, protocol, API, firmware, and release references.
 
@@ -38,12 +41,27 @@ The following capabilities are present in the repository:
   wired into the bridge**, and the shipped `src/device_profiles.json` and
   `templates/panels.json` use a different, non-JSON-compliant layout (hex
   literals, top-level `devices`/`panels` arrays) from the documented format the
-  loader accepts. See future work item 2.
+  loader accepts. See future work item 4.
 - Basic source and COM-port preferences persisted beside the executable.
 - RS-485 master/slave firmware, dynamic slave discovery, keep-alive handling,
   and mode messages.
 - Runtime log-channel controls, bounded UI/log buffers, capture-to-disk, dry-run
   mode, startup options, and operator diagnostics.
+- **Hornet-native path (protocol v2), stage 1.** No DCS-BIOS needed at run time:
+  - `catalog/fa18c.json` holds every F/A-18C control once, with stable IDs, types,
+    position names and DCS data. `Programs/tools/generate_hornet_catalog.py`
+    generates the Arduino header, `HnSpec.h`, the native Lua exporter
+    (`lua/HornetLinkNative.lua`) and the reference docs from it, plus a
+    catalogue hash.
+  - Portable protocol core in `libraries/HornetLink/src/protocol/`: COBS
+    framing, typed records, node and polled bus master.
+  - Arduino API (`Hornet.h`): named elements, IO sources (pins, 74HC165/595,
+    MCP23017, matrix, CD4067), filters, ASCII debug mode, five example sketches.
+  - Bridge-side logic in `src/HornetNative.hpp`: exporter parser, input
+    validation, DCS-is-truth sync tracker, frame decoder, `LinkSession`.
+  - Unit tests include a simulated three-slave bus, plus fuzz targets.
+  - Docs: [PROTOCOL_V2.md](PROTOCOL_V2.md) and [FIRST_PANEL.md](FIRST_PANEL.md).
+  - Not yet wired into `main.cpp`: see future work item 1.
 - CMake-based C++ unit tests, libFuzzer targets for the untrusted-input
   parsers, and the CI jobs listed under [Continuous integration](#continuous-integration).
 
@@ -58,8 +76,14 @@ checks before treating a change as release-ready.
   and serial ports.
 - The DCS-BIOS UDP source binds `INADDR_ANY:5010` for multicast, so LAN hosts
   can send export frames. Input is bounds-checked; see [SECURITY.md](../SECURITY.md).
-- Full DCS cockpit data requires DCS-BIOS. The Lua exporter's fallback heartbeat
-  is only for connectivity checks.
+- Full DCS cockpit data requires DCS-BIOS until the Hornet-native path is wired
+  into the bridge (future work item 1). The DCS-BIOS forwarder's fallback
+  heartbeat is only for connectivity checks.
+- **DCS data in the catalogue is temporarily taken from DCS-BIOS.** Every
+  catalogue entry's DCS device ID, argument, command code and indication field
+  is marked `"source": "dcsbios"`. [DCS_DATA_PROVENANCE.md](DCS_DATA_PROVENANCE.md)
+  lists every occurrence. Replace them with data read from a DCS install; see
+  future work item 2.
 - `MsfsSource` is a stub. MSFS integration needs a deliberate variable/address
   mapping design as well as simulator API integration; the DCS-BIOS 64 KiB
   address map cannot be assumed to represent MSFS variables.
@@ -152,7 +176,10 @@ separately in `libraries/HornetLink/library.properties`.
 ### Arduino checks
 
 CI compiles the Mega 2560 master, Pro Micro slave, and ESP32 master sketches
-with `arduino-cli`. When changing shared firmware code, run those board builds
+with `arduino-cli`. It also compiles the protocol v2 sketches (`sketches/v2_*`)
+for Leonardo/Pro Micro, Mega 2560, ESP32 and Arduino Giga R1. The `catalog`
+job runs `python3 Programs/tools/generate_hornet_catalog.py --check`; re-run the
+generator without `--check` after editing anything in `catalog/`. When changing shared firmware code, run those board builds
 or verify the corresponding CI job. The exact CI commands and board targets are
 in `.github/workflows/ci.yml`.
 
@@ -163,7 +190,8 @@ in `.github/workflows/ci.yml`.
 | Bridge OS | Windows 10/11 x64 | Build only (MSVC, MinGW) |
 | Bridge toolchain | MSVC 2022 (VS 17), CMake ≥ 3.20 | Yes |
 | Core headers / tests | MSVC, GCC, Clang (C++17) | Yes |
-| Firmware boards | Arduino Mega 2560, Pro Micro (Leonardo), ESP32 | Compile only |
+| Firmware boards | Arduino Mega 2560, Pro Micro (Leonardo), ESP32; Arduino Giga R1 (v2 only) | Compile only |
+| v2 library RAM budget | Pro Micro (2.5 KB RAM) is the smallest panel target; a bus master needs a Mega/ESP32/Giga | Compile only |
 | Lua exporter | DCS World export environment (Lua 5.1) | Lint only |
 
 ## Working on the project
@@ -184,7 +212,44 @@ in `.github/workflows/ci.yml`.
 This is the single prioritized backlog. Items are proposals, not commitments or
 release dates; adjust priority when requirements or hardware evidence change.
 
-### 1. Validate long-session behavior and UI status reporting
+### 1. Finish the Hornet-native path in the bridge (stage 2)
+
+Stage 1 (catalogue, generator, protocol v2, Arduino library, native exporter
+and the bridge's portable `HornetNative.hpp`) is complete and unit-tested.
+What's left is connecting it to the bridge program:
+
+- A native data source in `main.cpp`: receive exporter datagrams on UDP 42003
+  into `CatalogState`, and send validated inputs to 42004 with
+  `formatExporterInput`.
+- COM-port negotiation: `LinkSession::start()` first, and fall back to the v1
+  ping if no v2 frame arrives within about 200 ms. Then run v1 and v2 side by
+  side.
+- UI: nodes by name, the catalogue-mismatch warning, a decoder view using
+  `decodeFrame`, mode buttons including wiring test, and the sync overlay
+  on/off setting.
+- In-game discrepancy overlay: a `Scripts/Hooks` GUI script that shows
+  `SyncTracker::overlayText()`.
+- Pass HELLO board IDs to item 4 (board identity).
+- Retire v1 once v2 is verified on real panels.
+
+**Done when:** a USB panel and a bus master with slaves run through the bridge
+against DCS using only `HornetLinkNative.lua`. The hardware-only scenarios in
+`tests/test-plan.yaml` (HN-*) pass.
+
+### 2. Replace DCS-BIOS-derived DCS data in the catalogue
+
+Every `dcs` block in `catalog/fa18c.json` is currently copied from DCS-BIOS
+(`"source": "dcsbios"`). The register is
+[DCS_DATA_PROVENANCE.md](DCS_DATA_PROVENANCE.md). Extract the device IDs,
+argument numbers, command codes and indication fields from the DCS install
+(`Mods/aircraft/FA-18C/Cockpit/Scripts/clickabledata.lua`, `devices.lua`,
+`command_defs.lua`, and the display indication scripts). Check each value in
+the cockpit, set `"source": "dcs"`, and regenerate.
+
+**Done when:** no catalogue entry has `"source": "dcsbios"` and the provenance
+register is empty.
+
+### 3. Validate long-session behavior and UI status reporting
 
 The code already has log-channel controls, bounded buffers, capture-to-disk,
 and runtime metrics. The remaining task is to validate them under representative
@@ -195,7 +260,7 @@ without UI freezes or unbounded queue growth; dropped lines and capture output
 are understood; any confirmed flicker has a regression check or documented
 resolution.
 
-### 2. Add stable board identity and explicit panel assignment
+### 4. Add stable board identity and explicit panel assignment
 
 First wire `ProfileStore` into the bridge and reconcile the shipped
 `device_profiles.json` / `templates/panels.json` with the format the loader
@@ -203,13 +268,15 @@ accepts (documented in `ProfileStore.hpp` and covered by
 `tests/test_profile_store.cpp`). Then define which identity fields are available
 and reliable, track reconnects and port renumbering, and provide user
 confirmation when a board-to-panel match is ambiguous. Keep profile-by-name
-lookup as a fallback.
+lookup as a fallback. Protocol v2 HELLO already carries an 8-byte board ID,
+firmware version and catalogue hash, and DESCRIBE lists the controls each
+board owns. Use these as the identity fields.
 
 **Done when:** users can review and persist board-to-panel assignments, restore
 them after reconnects or port changes when identity is reliable, and resolve
 uncertain matches explicitly without silent remapping.
 
-### 3. Decide and implement an MSFS integration
+### 5. Decide and implement an MSFS integration
 
 Choose an integration API and establish how MSFS variables map to device
 subscriptions and import commands before implementing the source. Avoid
@@ -220,7 +287,7 @@ supported variables are documented; the source reports connection failures
 clearly, updates state through the bridge, and has tests for both state and
 import paths.
 
-### 4. Reassess hardware abstraction
+### 6. Reassess hardware abstraction
 
 After board identity and panel assignment requirements are understood, decide
 whether configurable serial framing or support for additional hardware is

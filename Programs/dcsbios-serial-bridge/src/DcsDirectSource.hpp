@@ -20,9 +20,10 @@
  * ### Architecture
  * - **Module-agnostic base:** `HornetLinkExport.lua` handles the export loop
  *   and framing for any aircraft.
- * - **Per-module definitions:** `lua/modules/FA-18C.lua` declares address
- *   ranges for the F/A-18C Hornet.  Adding a new aircraft requires only a
- *   new module definition file; no C++ changes are needed.
+ * - **No hand-written address map:** the old `lua/modules/FA-18C.lua` map
+ *   drifted from DCS-BIOS and was removed. The F/A-18C control list now lives
+ *   in `catalog/fa18c.json` and is used by the Hornet-native path
+ *   (`HornetLinkNative.lua`, `HornetNative.hpp`).
  * - **Backward compatibility:** DcsBiosSource is preserved for operators who
  *   prefer to keep DCS-BIOS installed.
  *

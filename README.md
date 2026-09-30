@@ -148,6 +148,12 @@ See the [F/A-18C export inventory](docs/F18C_EXPORT_INVENTORY.md) for a
 versioned, equipment-grouped catalog of Hornet controls and outputs, including
 the verification path for future native DCS export evidence.
 
+**Hornet-native protocol v2 (in progress):** an F/A-18C-only replacement for
+DCS-BIOS. It has named controls, a collision-free RS-485 bus and a beginner-friendly
+Arduino API. Start with [docs/FIRST_PANEL.md](docs/FIRST_PANEL.md); the protocol
+is in [docs/PROTOCOL_V2.md](docs/PROTOCOL_V2.md). The bridge UI integration is
+still pending (see the developer guide).
+
 ## Dependencies
 
 ### DCS-BIOS (Required for full cockpit data)
