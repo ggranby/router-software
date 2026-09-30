@@ -57,6 +57,16 @@ public:
     uint16_t minIntervalMs = 20;    ///< max ~50 reports per second
     uint16_t settleMs = 150;
 
+    void prime(uint16_t raw16) {
+        acc_ = static_cast<uint32_t>(raw16) << 8;
+        sent_ = raw16;
+        primed_ = true;
+        haveSent_ = true;
+        moving_ = false;
+    }
+
+    bool primed() const { return primed_; }
+
     /// @param raw16 reading scaled to 0-65535. Returns true and sets @p out when a report is due.
     bool update(uint16_t raw16, uint32_t nowMs, uint16_t& out) {
         const uint32_t target = static_cast<uint32_t>(raw16) << 8;

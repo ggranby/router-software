@@ -250,6 +250,7 @@ public:
     void poll(uint32_t now) override {
         uint16_t v = scaleToAxis(in_.read(), min_, max_);
         if (reverse_) v = static_cast<uint16_t>(65535u - v);
+        if (!filter.primed()) { filter.prime(v); return; }
         uint16_t out;
         if (filter.update(v, now, out)) emit(hn::ACTION_ANALOG, out);
     }

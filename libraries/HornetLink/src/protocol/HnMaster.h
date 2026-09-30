@@ -28,6 +28,7 @@ struct SlaveStatus {
     bool online = false;
     uint8_t missed = 0;
     uint16_t lastInputSeq = 0; ///< 0x100 | seq of the last forwarded INPUT, 0 = none
+    uint32_t lastInputMs = 0;
     uint32_t lastPollMs = 0;
     uint32_t boardHash = 0;
     bool helloThisWindow = false;
@@ -46,6 +47,7 @@ public:
     static constexpr uint8_t kMaxSlaves = 32;
     static constexpr uint8_t kQueueFrames = 6;
     static constexpr uint16_t kOfflinePollMs = 1000;
+    static constexpr uint16_t kInputRetryWindowMs = 1000;
 
     BusMaster(Port& upstream, Port& bus) : up_(upstream), bus_(bus) {}
 
@@ -173,11 +175,22 @@ private:
             const uint8_t ack[1] = {h.seq};
             queueDown(s->address, MSG_ACK, seq_++, ack, 1);
             const uint16_t tagged = static_cast<uint16_t>(0x100 | h.seq);
-            if (s->lastInputSeq == tagged) { counters_.duplicateInputs++; return; }
+            if (s->lastInputSeq == tagged && now_ - s->lastInputMs < kInputRetryWindowMs) {
+                counters_.duplicateInputs++;
+                return;
+            }
             s->lastInputSeq = tagged;
+            s->lastInputMs = now_;
             forwardUp(h, p);
             return;
         }
+        case MSG_ACK:
+            if (pendingAddressOld_ && h.src == pendingAddressOld_) {
+                if (SlaveStatus* old = find(pendingAddressOld_)) old->address = pendingAddressNew_;
+                pendingAddressOld_ = pendingAddressNew_ = 0;
+            }
+            forwardUp(h, p);
+            return;
         case MSG_HELLO: {
             const uint32_t hash = h.len >= 17 ? crc16(p + 8, 8) | (static_cast<uint32_t>(crc16(p + 8, 8, 0x1D0F)) << 16) : 0;
             if (state_ == BusState::Discover && s->helloThisWindow && hash != s->boardHash) {
@@ -208,6 +221,11 @@ private:
         }
         if (h.dst >= ADDR_FIRST_SLAVE && h.dst <= ADDR_LAST_SLAVE) {
             if (h.type == MSG_ACK) return; // the master already acknowledged on the bus
+            if (h.type == MSG_CONFIG && h.len >= 2 && p[0] == CFG_BUS_ADDRESS &&
+                p[1] >= ADDR_FIRST_SLAVE && p[1] <= ADDR_LAST_SLAVE) {
+                pendingAddressOld_ = h.dst;
+                pendingAddressNew_ = p[1];
+            }
             queueDown(h.dst, h.type, h.seq, p, h.len, h.src);
         }
     }
@@ -330,6 +348,8 @@ private:
     FrameDecoder busDec_;
     SlaveStatus slaves_[kMaxSlaves];
     uint8_t slaveCount_ = 0;
+    uint8_t pendingAddressOld_ = 0;
+    uint8_t pendingAddressNew_ = 0;
     uint8_t cursor_ = 0;
     BusState state_ = BusState::Idle;
     uint8_t awaiting_ = 0;

@@ -20,6 +20,9 @@
 #if defined(ESP32)
   #include <Esp.h>
 #endif
+#if defined(__AVR__)
+  #include <EEPROM.h>
+#endif
 
 #if defined(__AVR__)
 extern int __heap_start, *__brkval; // avr-libc heap bounds, used for free-RAM reports
@@ -98,6 +101,7 @@ public:
     void beginUsb(S& serial, uint32_t baud = 250000) {
         serial.begin(baud);
         port_.attach(&serial, -1);
+        loadBoardId();
         start();
         node_.beginUsb();
     }
@@ -107,9 +111,9 @@ public:
     void beginRs485(S& serial, uint8_t busAddress, int8_t dePin, uint32_t baud = 250000) {
         serial.begin(baud);
         port_.attach(&serial, dePin);
-        boardId_[4] = busAddress;
+        loadBoardId();
         start();
-        node_.seedRandom(detail::fnv(name_) ^ busAddress);
+        node_.seedRandom(identityHash());
         node_.beginBus(busAddress);
     }
 
@@ -137,8 +141,8 @@ public:
         for (DigitalSink* s = DigitalSink::first(); s; s = s->nextSink) s->flush();
     }
 
-    /// Unique id for this board (default: derived from the panel name and bus address).
-    void setBoardId(const uint8_t id[8]) { memcpy(boardId_, id, 8); }
+    /// Set a stable per-device id; otherwise hardware or EEPROM identity is used.
+    void setBoardId(const uint8_t id[8]) { memcpy(boardId_, id, 8); boardIdSet_ = true; }
     /// Called when the bridge asks to persist settings (CONFIG SAVE). Return true on success.
     void onSave(SaveHook fn) { save_ = fn; }
     void onModeChange(ModeHook fn) { modeHook_ = fn; }
@@ -158,6 +162,7 @@ public:
         h.name[hn::kMaxName] = '\0';
     }
     void onState(const hn::StateRecord& r) override {
+        if (mode_ == hn::MODE_MAINTENANCE) return;
         for (Element* e = Element::first(); e; e = e->next())
             if ((e->roles() & kRoleOut) && e->id() == r.id) e->onState(r);
     }
@@ -237,6 +242,33 @@ public:
     }
 
 private:
+    uint32_t identityHash() const {
+        uint32_t h = 2166136261UL;
+        for (uint8_t b : boardId_) { h ^= b; h *= 16777619UL; }
+        return h;
+    }
+
+    void loadBoardId() {
+        if (boardIdSet_) return;
+#if defined(ESP32)
+        const uint64_t mac = ESP.getEfuseMac();
+        for (uint8_t i = 0; i < 8; i++) boardId_[i] = static_cast<uint8_t>(mac >> (8 * i));
+#elif defined(__AVR__)
+        const uint8_t magic = EEPROM.read(0);
+        if (magic == 0xA5) {
+            for (uint8_t i = 0; i < 8; i++) boardId_[i] = EEPROM.read(static_cast<int>(i + 1));
+        } else {
+            uint32_t seed = static_cast<uint32_t>(analogRead(A0)) ^ micros();
+            for (uint8_t i = 0; i < 8; i++) {
+                seed = seed * 1103515245UL + 12345UL;
+                boardId_[i] = static_cast<uint8_t>(seed >> 24);
+                EEPROM.update(static_cast<int>(i + 1), boardId_[i]);
+            }
+            EEPROM.update(0, 0xA5);
+        }
+#endif
+    }
+
     void start() {
         Element::sink() = &Panel::inputThunk;
         self() = this;
@@ -358,6 +390,7 @@ private:
     StreamPort port_;
     hn::Node node_;
     uint8_t boardId_[8] = {};
+    bool boardIdSet_ = false;
     uint8_t mode_ = hn::MODE_SIM;
     Stream* debug_ = nullptr;
     char line_[48];

@@ -11,8 +11,13 @@
 using namespace Hornet;
 
 // ── Keypad: 4 rows x 3 columns (1 2 3 / 4 5 6 / 7 8 9 / CLR 0 ENT) ────────
+#if defined(ESP32)
+const uint8_t ROWS[] = {18, 19, 21, 22};
+const uint8_t COLS[] = {23, 25, 26};
+#else
 const uint8_t ROWS[] = {22, 23, 24, 25};
 const uint8_t COLS[] = {26, 27, 28};
+#endif
 Matrix keypad(ROWS, COLS);
 
 Button key1(UFC::Key1, keypad.key(0, 0));
@@ -29,6 +34,21 @@ Button key0(UFC::Key0, keypad.key(3, 1));
 Button keyEnt(UFC::KeyEnt, keypad.key(3, 2));
 
 // ── Option select buttons and function keys on direct pins ────────────────
+#if defined(ESP32)
+Button os1(UFC::Os1, 0);
+Button os2(UFC::Os2, 2);
+Button os3(UFC::Os3, 3);
+Button os4(UFC::Os4, 4);
+Button os5(UFC::Os5, 5);
+Button ap(UFC::Ap, 12);
+Button iff(UFC::Iff, 13);
+Button tcn(UFC::Tcn, 14);
+Button ils(UFC::Ils, 15);
+Button dl(UFC::Dl, 1);
+Button bcn(UFC::Bcn, 27);
+Button onOff(UFC::Onoff, 32);
+Switch adf(UFC::Adf, 33, none, none);
+#else
 Button os1(UFC::Os1, 30);
 Button os2(UFC::Os2, 31);
 Button os3(UFC::Os3, 32);
@@ -42,13 +62,19 @@ Button dl(UFC::Dl, 39);
 Button bcn(UFC::Bcn, 40);
 Button onOff(UFC::Onoff, 41);
 Switch adf(UFC::Adf, 42, none, 43);                 // ADF1 / OFF / ADF2
+#endif
 
 // ── Knobs ─────────────────────────────────────────────────────────────────
 Pot comm1Vol(UFC::Comm1Vol, A0);
 Pot comm2Vol(UFC::Comm2Vol, A1);
 Pot brightness(UFC::Brt, A2);
 Encoder comm1Channel(UFC::Comm1Channel, 2, 3);
-Encoder comm2Channel(UFC::Comm2Channel, 18, 19);
+Encoder comm2Channel(UFC::Comm2Channel,
+#if defined(ESP32)
+                     16, 17);
+#else
+                     46, 47);
+#endif
 Button comm1Pull(UFC::Comm1Pull, 44);
 Button comm2Pull(UFC::Comm2Pull, 45);
 
