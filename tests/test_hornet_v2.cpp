@@ -1036,6 +1036,102 @@ void busTests() {
         }));
     });
 
+    addTest(s, "Pending address changes probe and reconcile the requested address", []() {
+        UsbPort upstream, bus;
+        hn::FrameDecoder busDecoder;
+        struct CapturedFrame {
+            hn::FrameHeader header;
+            std::vector<uint8_t> payload;
+        };
+        std::vector<CapturedFrame> busFrames;
+        bus.out = [&](const uint8_t* d, size_t n) {
+            for (size_t i = 0; i < n; i++) {
+                if (busDecoder.feed(d[i]) != hn::FrameDecoder::Result::Frame) continue;
+                CapturedFrame f;
+                f.header = busDecoder.header();
+                f.payload.assign(busDecoder.payload(), busDecoder.payload() + f.header.len);
+                busFrames.push_back(f);
+            }
+        };
+        hn::BusMaster master(upstream, bus);
+        EXPECT_TRUE(master.addSlave(1));
+
+        const auto request = frame(1, hn::ADDR_BRIDGE, hn::MSG_CONFIG, 9, {hn::CFG_BUS_ADDRESS, 3});
+        upstream.rx.insert(upstream.rx.end(), request.begin(), request.end());
+        master.update(1);
+        EXPECT_EQ(master.slave(0).pendingAddress, 3);
+
+        const auto oldReply = frame(hn::ADDR_LINK_NODE, 1, hn::MSG_POLL_EMPTY, 0, {});
+        bus.rx.insert(bus.rx.end(), oldReply.begin(), oldReply.end());
+        master.update(2);
+        EXPECT_TRUE(std::any_of(busFrames.begin(), busFrames.end(), [](const CapturedFrame& f) {
+            return f.header.type == hn::MSG_POLL && f.header.dst == 3;
+        }));
+
+        const auto newReply = frame(hn::ADDR_LINK_NODE, 3, hn::MSG_POLL_EMPTY, 0, {});
+        bus.rx.insert(bus.rx.end(), newReply.begin(), newReply.end());
+        master.update(3);
+        EXPECT_EQ(master.slave(0).address, 3);
+        EXPECT_EQ(master.slave(0).pendingAddress, 0);
+    });
+
+    addTest(s, "Pending address change fails upstream after timeout", []() {
+        UsbPort upstream, bus;
+        hn::FrameDecoder upstreamDecoder;
+        std::vector<std::vector<uint8_t>> upstreamFrames;
+        upstream.out = [&](const uint8_t* d, size_t n) {
+            for (size_t i = 0; i < n; i++) {
+                if (upstreamDecoder.feed(d[i]) != hn::FrameDecoder::Result::Frame) continue;
+                upstreamFrames.emplace_back(upstreamDecoder.payload(),
+                                             upstreamDecoder.payload() + upstreamDecoder.header().len);
+            }
+        };
+        hn::BusMaster master(upstream, bus);
+        EXPECT_TRUE(master.addSlave(1));
+        const auto request = frame(1, hn::ADDR_BRIDGE, hn::MSG_CONFIG, 17, {hn::CFG_BUS_ADDRESS, 3});
+        upstream.rx.insert(upstream.rx.end(), request.begin(), request.end());
+        master.update(1);
+        master.update(1 + hn::BusMaster::kAddressTransitionTimeoutMs);
+        EXPECT_EQ(master.slave(0).pendingAddress, 0);
+        EXPECT_TRUE(std::any_of(upstreamFrames.begin(), upstreamFrames.end(), [](const std::vector<uint8_t>& p) {
+            return p.size() == 4 && p[0] == 17 && p[1] == hn::NACK_BAD_VALUE;
+        }));
+    });
+
+    addTest(s, "DESCRIBE requests preserve queued page order", []() {
+        UsbPort port;
+        hn::FrameDecoder decoder;
+        std::vector<std::vector<uint8_t>> pages;
+        port.out = [&](const uint8_t* d, size_t n) {
+            for (size_t i = 0; i < n; i++) {
+                if (decoder.feed(d[i]) == hn::FrameDecoder::Result::Frame &&
+                    decoder.header().type == hn::MSG_DESCRIBE)
+                    pages.emplace_back(decoder.payload(), decoder.payload() + decoder.header().len);
+            }
+        };
+        TestPanel panel;
+        for (uint16_t i = 0; i <= hn::kDescribePerPage; i++) {
+            hn::SyncRecord r;
+            r.id = static_cast<uint16_t>(i + 1);
+            panel.positions.push_back(r);
+        }
+        hn::Node node(port, panel);
+        node.beginBus(1);
+        for (uint8_t page = 0; page < 2; page++) {
+            const auto request = frame(1, hn::ADDR_LINK_NODE, hn::MSG_DESCRIBE_REQUEST, page, {page});
+            port.rx.insert(port.rx.end(), request.begin(), request.end());
+        }
+        node.update(1);
+        for (uint8_t i = 0; i < 2; i++) {
+            const auto poll = frame(1, hn::ADDR_LINK_NODE, hn::MSG_POLL, i, {});
+            port.rx.insert(port.rx.end(), poll.begin(), poll.end());
+            node.update(2 + i);
+        }
+        EXPECT_EQ(pages.size(), static_cast<size_t>(2));
+        EXPECT_EQ(pages[0][0], 0);
+        EXPECT_EQ(pages[1][0], 1);
+    });
+
     addTest(s, "Bus reply queue handles the master's maximum downstream burst", []() {
         BusRig rig;
         rig.run(1500);

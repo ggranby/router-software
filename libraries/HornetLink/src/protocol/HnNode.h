@@ -74,6 +74,7 @@ struct NodeTiming {
 class Node {
 public:
     static constexpr uint8_t kInputQueue = 16;
+    static constexpr uint8_t kDescribeQueue = 8;
 
     Node(Port& port, NodeHandler& handler) : port_(port), handler_(handler) {}
 
@@ -160,8 +161,12 @@ private:
             break;
         case MSG_HELLO_REQUEST: requestHello(); break;
         case MSG_DESCRIBE_REQUEST:
-            describeDue_ = true;
-            describePage_ = n >= 1 ? p[0] : 0;
+            if (describeCount_ >= kDescribeQueue) {
+                lastError_ = NACK_BAD_VALUE;
+                break;
+            }
+            describePages_[(describeHead_ + describeCount_) % kDescribeQueue] = n >= 1 ? p[0] : 0;
+            describeCount_++;
             break;
         case MSG_STATE: {
             StateReader rd(p, n);
@@ -276,7 +281,13 @@ private:
             sendSimple(MSG_SUBSCRIBE, scratch_, handler_.writeSubscribe(scratch_, kMaxPayload));
             return true;
         }
-        if (describeDue_) { describeDue_ = false; sendDescribe(); return true; }
+        if (describeCount_) {
+            const uint8_t page = describePages_[describeHead_];
+            describeHead_ = static_cast<uint8_t>((describeHead_ + 1) % kDescribeQueue);
+            describeCount_--;
+            sendDescribe(page);
+            return true;
+        }
         if (diagDue_) { diagDue_ = false; sendDiag(); return true; }
         if (syncDue_) { sendSyncPage(); return true; }
         if (inCount_ && !inFlight_) {
@@ -303,12 +314,12 @@ private:
         sendSimple(MSG_HELLO, scratch_, writeHello(scratch_, kMaxPayload, h));
     }
 
-    void sendDescribe() {
+    void sendDescribe(uint8_t requestedPage) {
         const uint16_t total = handler_.describeCount();
         uint16_t pages = static_cast<uint16_t>((total + kDescribePerPage - 1) / kDescribePerPage);
         if (pages == 0) pages = 1;
         if (pages > 255) pages = 255;
-        const uint8_t page = describePage_ < pages ? describePage_ : static_cast<uint8_t>(pages - 1);
+        const uint8_t page = requestedPage < pages ? requestedPage : static_cast<uint8_t>(pages - 1);
         scratch_[0] = page;
         scratch_[1] = static_cast<uint8_t>(pages);
         size_t n = 2;
@@ -386,8 +397,9 @@ private:
     uint16_t droppedInputs_ = 0;
     uint8_t lastError_ = 0;
 
-    bool helloDue_ = false, subscribeDue_ = false, describeDue_ = false, diagDue_ = false, syncDue_ = false;
-    uint8_t describePage_ = 0;
+    bool helloDue_ = false, subscribeDue_ = false, diagDue_ = false, syncDue_ = false;
+    uint8_t describePages_[kDescribeQueue] = {};
+    uint8_t describeHead_ = 0, describeCount_ = 0;
     uint16_t syncCursor_ = 0;
 
     uint8_t reply_[4] = {};

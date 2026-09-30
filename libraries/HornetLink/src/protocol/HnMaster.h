@@ -34,6 +34,8 @@ struct SlaveStatus {
     bool helloThisWindow = false;
     uint8_t pendingAddress = 0;
     uint8_t pendingAddressSeq = 0;
+    uint32_t pendingAddressSince = 0;
+    bool probePendingAddressNext = false;
 };
 
 struct MasterCounters {
@@ -50,6 +52,7 @@ public:
     static constexpr uint8_t kQueueFrames = 6;
     static constexpr uint16_t kOfflinePollMs = 1000;
     static constexpr uint16_t kInputRetryWindowMs = 1000;
+    static constexpr uint16_t kAddressTransitionTimeoutMs = 1000;
 
     BusMaster(Port& upstream, Port& bus) : up_(upstream), bus_(bus) {}
 
@@ -96,6 +99,7 @@ private:
 
     // ── Bus side ─────────────────────────────────────────────────────────
     void runBus() {
+        expireAddressTransitions();
         if (state_ == BusState::AwaitReply) {
             const bool late = static_cast<int32_t>(now_ - deadline_) >= 0;
             const bool hardLate = static_cast<int32_t>(now_ - deadline_) >= static_cast<int32_t>(kTimingReplyTimeoutMs);
@@ -132,11 +136,16 @@ private:
         for (uint8_t tries = 0; tries < slaveCount_; tries++) {
             cursor_ = static_cast<uint8_t>((cursor_ + 1) % slaveCount_);
             SlaveStatus& s = slaves_[cursor_];
-            if (!s.online && (now_ - s.lastPollMs) < kOfflinePollMs) continue;
+            if (!s.online && !s.pendingAddress && (now_ - s.lastPollMs) < kOfflinePollMs) continue;
             s.lastPollMs = now_;
             counters_.polls++;
-            sendBus(s.address, MSG_POLL, seq_++, nullptr, 0);
-            awaiting_ = s.address;
+            uint8_t address = s.address;
+            if (s.pendingAddress) {
+                if (s.probePendingAddressNext) address = s.pendingAddress;
+                s.probePendingAddressNext = !s.probePendingAddressNext;
+            }
+            sendBus(address, MSG_POLL, seq_++, nullptr, 0);
+            awaiting_ = address;
             deadline_ = now_ + kTimingReplyTimeoutMs;
             state_ = BusState::AwaitReply;
             return;
@@ -149,6 +158,7 @@ private:
             s.online = false;
             s.lastInputSeq = 0;
             busEvent(BUS_DROP, s.address);
+            if (s.pendingAddress) failPendingAddress(s);
         }
     }
 
@@ -159,6 +169,15 @@ private:
         if (state_ == BusState::AwaitReply && h.src == awaiting_) state_ = BusState::Idle;
 
         SlaveStatus* s = find(h.src);
+        if (!s) {
+            for (uint8_t i = 0; i < slaveCount_; i++) {
+                if (slaves_[i].pendingAddress != h.src) continue;
+                s = &slaves_[i];
+                s->address = h.src;
+                clearPendingAddress(*s);
+                break;
+            }
+        }
         if (!s && discovery_ && h.type == MSG_HELLO && addSlave(h.src)) s = find(h.src);
         if (!s) {
             // e.g. a HELLO from an unaddressed board (src 0xFF): let the bridge see it.
@@ -189,13 +208,13 @@ private:
         case MSG_ACK:
             if (s->pendingAddress && h.len >= 1 && p[0] == s->pendingAddressSeq) {
                 s->address = s->pendingAddress;
-                s->pendingAddress = s->pendingAddressSeq = 0;
+                clearPendingAddress(*s);
             }
             forwardUp(h, p);
             return;
         case MSG_NACK:
             if (s->pendingAddress && h.len >= 1 && p[0] == s->pendingAddressSeq)
-                s->pendingAddress = s->pendingAddressSeq = 0;
+                clearPendingAddress(*s);
             forwardUp(h, p);
             return;
         case MSG_HELLO: {
@@ -246,6 +265,8 @@ private:
                         }
                         s->pendingAddress = p[1];
                         s->pendingAddressSeq = h.seq;
+                        s->pendingAddressSince = now_;
+                        s->probePendingAddressNext = false;
                         return;
                     }
                 }
@@ -364,6 +385,27 @@ private:
     void nackUpstream(uint8_t requestSeq, uint8_t reason) {
         const uint8_t nack[4] = {requestSeq, reason, 0, 0};
         sendUp(MSG_NACK, nack, sizeof(nack));
+    }
+
+    void clearPendingAddress(SlaveStatus& s) {
+        s.pendingAddress = 0;
+        s.pendingAddressSeq = 0;
+        s.pendingAddressSince = 0;
+        s.probePendingAddressNext = false;
+    }
+
+    void failPendingAddress(SlaveStatus& s) {
+        nackUpstream(s.pendingAddressSeq, NACK_BAD_VALUE);
+        clearPendingAddress(s);
+    }
+
+    void expireAddressTransitions() {
+        for (uint8_t i = 0; i < slaveCount_; i++) {
+            SlaveStatus& s = slaves_[i];
+            if (s.pendingAddress &&
+                now_ - s.pendingAddressSince >= kAddressTransitionTimeoutMs)
+                failPendingAddress(s);
+        }
     }
 
     bool addressReserved(uint8_t address, const SlaveStatus* except) const {
