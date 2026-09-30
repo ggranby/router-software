@@ -5,6 +5,8 @@ on:
     branches: [ main, develop ]
     paths:
       - 'Programs/dcsbios-serial-bridge/**'
+      - 'Programs/tools/**'
+      - 'catalog/**'
       - 'libraries/**'
       - 'sketches/**'
       - 'tests/**'
@@ -16,6 +18,8 @@ on:
     branches: [ main ]
     paths:
       - 'Programs/dcsbios-serial-bridge/**'
+      - 'Programs/tools/**'
+      - 'catalog/**'
       - 'libraries/**'
       - 'sketches/**'
       - 'tests/**'
@@ -121,6 +125,19 @@ jobs:
           src/main.cpp -o hornet-link.exe -static
           -lws2_32 -lshlwapi -lcomdlg32
 
+  # ── Control catalogue ──────────────────────────────────────────────────────
+  catalog:
+    name: Generated catalogue files are up to date
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check generator output
+        # Fails if catalog/*.json was edited without re-running the generator.
+        run: python3 Programs/tools/generate_hornet_catalog.py --check
+
   # ── Lua lint ───────────────────────────────────────────────────────────────
   lua-lint:
     name: Lint Lua exporter (luacheck)
@@ -211,6 +228,7 @@ jobs:
           arduino-cli core update-index --additional-urls "$ESP32_URL"
           arduino-cli core install arduino:avr
           arduino-cli core install esp32:esp32 --additional-urls "$ESP32_URL"
+          arduino-cli core install arduino:mbed_giga
 
       - name: Verify HornetLink library path
         run: |
@@ -236,6 +254,35 @@ jobs:
             --libraries "$GITHUB_WORKSPACE/libraries" \
             --fqbn esp32:esp32:esp32 \
             sketches/sketch_esp32_master
+
+      # Protocol v2 (Hornet-native) library and examples.
+      - name: Compile v2 sketches (Pro Micro / Leonardo)
+        run: |
+          for s in v2_first_panel v2_master_arm_panel v2_caution_panel; do
+            arduino-cli compile --libraries "$GITHUB_WORKSPACE/libraries" \
+              --fqbn arduino:avr:leonardo "sketches/$s"
+          done
+
+      - name: Compile v2 sketches (Mega 2560)
+        run: |
+          for s in v2_first_panel v2_master_arm_panel v2_caution_panel v2_ufc_panel v2_bus_master; do
+            arduino-cli compile --libraries "$GITHUB_WORKSPACE/libraries" \
+              --fqbn arduino:avr:mega "sketches/$s"
+          done
+
+      - name: Compile v2 sketches (ESP32)
+        run: |
+          for s in v2_master_arm_panel v2_ufc_panel v2_bus_master; do
+            arduino-cli compile --libraries "$GITHUB_WORKSPACE/libraries" \
+              --fqbn esp32:esp32:esp32 "sketches/$s"
+          done
+
+      - name: Compile v2 sketches (Arduino Giga R1)
+        run: |
+          for s in v2_master_arm_panel v2_ufc_panel v2_bus_master; do
+            arduino-cli compile --libraries "$GITHUB_WORKSPACE/libraries" \
+              --fqbn arduino:mbed_giga:giga "sketches/$s"
+          done
 
   # ── Documentation build ────────────────────────────────────────────────────
   docs:

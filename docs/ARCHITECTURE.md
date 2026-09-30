@@ -109,8 +109,8 @@ capable architecture:
 
 | File | Purpose |
 |------|---------|
-| `HornetLinkExport.lua` | DCS export hook — forwards data to port 42002 |
-| `modules/FA-18C.lua` | F/A-18C DCS-BIOS address map reference |
+| `HornetLinkExport.lua` | DCS export hook — forwards DCS-BIOS data to port 42002 |
+| `HornetLinkNative.lua` | Hornet-native exporter (generated from `catalog/fa18c.json`), protocol v2 path |
 
 ---
 

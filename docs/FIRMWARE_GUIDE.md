@@ -178,8 +178,9 @@ Import commands use the DCS-BIOS command syntax:
 SET <CONTROL_IDENTIFIER> <VALUE>
 ```
 
-Valid identifiers and value ranges are listed in `lua/modules/FA-18C.lua` and
-the DCS-BIOS control reference JSON.
+Valid identifiers and value ranges are listed in the DCS-BIOS control
+reference JSON (see also `docs/F18C_EXPORT_INVENTORY.md`). The Hornet-native
+v2 library uses named, typed controls instead; see `docs/F18C_CONTROL_REFERENCE.md`.
 
 ---
 
