@@ -8,6 +8,8 @@
 
 #include <chrono>
 #include <functional>
+#include <string_view>
+#include <vector>
 
 namespace hornet_native {
 
@@ -58,6 +60,36 @@ private:
     Clock::time_point deadline_{};
     bool started_ = false;
     bool fallbackIssued_ = false;
+};
+
+/**
+ * @brief Composes exporter parsing, v2 serial framing, and state dispatch.
+ *
+ * This is the bridge-side runtime seam used by the Windows controller: UDP
+ * datagrams update the catalogue, while serial bytes drive LinkSession.
+ */
+class NativeBridgeRuntime {
+public:
+    NativeLinkNegotiator link;
+    CatalogState state;
+    std::function<void(const DatagramHeader&, const std::vector<uint16_t>&)> onState;
+
+    ParseResult ingestDatagram(std::string_view datagram) {
+        DatagramHeader header;
+        ParseStats stats;
+        const ParseResult result = parseExporterDatagram(datagram, state, header, stats);
+        if (result != ParseResult::Ok) return result;
+
+        std::vector<uint16_t> dirty = state.takeDirty();
+        if (link.session.takeFullStateDue()) dirty = state.allIds();
+        link.session.sendState(state, dirty);
+        if (onState) onState(header, dirty);
+        return result;
+    }
+
+    void start() { link.start(); }
+    void feedSerial(const uint8_t* data, size_t size) { link.feed(data, size); }
+    bool poll() { return link.poll(); }
 };
 
 } // namespace hornet_native
