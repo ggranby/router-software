@@ -1,0 +1,228 @@
+{
+  "schema": 1,
+  "aircraft": "FA-18C_hornet",
+  "catalog_version": "0.1.0",
+  "dcs_data_sources": {
+    "dcsbios": {
+      "description": "TEMPORARY. DCS device ids, command codes, argument numbers, argument values and indication field names copied from the DCS-BIOS F/A-18C module (Scripts/DCS-BIOS/lib/modules/aircraft_modules/FA-18C_hornet.lua) and Module.lua control semantics.",
+      "url": "https://github.com/DCS-Skunkworks/dcs-bios",
+      "license": "GPL-3.0 (DCS-BIOS)",
+      "retrieved": "2026-09-30, DCS-Skunkworks/dcs-bios main branch",
+      "replace_with": "native data extracted from the DCS install (Mods/aircraft/FA-18C/Cockpit/Scripts/clickabledata.lua, devices.lua, command_defs.lua, mainpanel_init.lua) and verified in the cockpit",
+      "tracking": "docs/DCS_DATA_PROVENANCE.md"
+    }
+  },
+  "panels": [
+    {
+      "id": 1,
+      "key": "MASTER_ARM",
+      "code": "MasterArm",
+      "name": "Master Arm Panel",
+      "controls": [
+        {"id": 1, "key": "MASTER_ARM", "name": "Master Arm Switch", "type": "switch", "positions": ["SAFE", "ARM"], "dcs": {"source": "dcsbios", "style": "tumb", "device": 23, "command": 3003, "arg": 49, "values": [0, 1]}, "flags": [], "verified": false},
+        {"id": 2, "key": "MODE_AA", "name": "Master Mode Button A/A", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 23, "command": 3001, "arg": 458}, "flags": [], "verified": false},
+        {"id": 3, "key": "MODE_AG", "name": "Master Mode Button A/G", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 23, "command": 3002, "arg": 459}, "flags": [], "verified": false},
+        {"id": 4, "key": "AA_LT", "name": "A/A Light (green)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 47, "threshold": 0.3}, "flags": [], "verified": false},
+        {"id": 5, "key": "AG_LT", "name": "A/G Light (green)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 48, "threshold": 0.3}, "flags": [], "verified": false},
+        {"id": 6, "key": "READY_LT", "name": "READY Light (yellow)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 44, "threshold": 0.3}, "flags": [], "verified": false},
+        {"id": 7, "key": "DISCH_LT", "name": "DISCH Light (green)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 45, "threshold": 0.3}, "flags": [], "verified": false},
+        {"id": 8, "key": "FIRE_EXT", "name": "Fire Extinguisher Pushbutton", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 12, "command": 3008, "arg": 46}, "flags": [], "verified": false},
+        {"id": 9, "key": "EMER_JETT", "name": "Emergency Jettison Button", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 23, "command": 3004, "arg": 50}, "flags": [], "verified": false}
+      ]
+    },
+    {
+      "id": 2,
+      "key": "UFC",
+      "code": "UFC",
+      "name": "Up Front Controller",
+      "controls": [
+        {"id": 1, "key": "KEY_0", "name": "Keyboard 0", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3018, "arg": 120}, "flags": [], "verified": false},
+        {"id": 2, "key": "KEY_1", "name": "Keyboard 1", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3019, "arg": 111}, "flags": [], "verified": false},
+        {"id": 3, "key": "KEY_2", "name": "Keyboard 2", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3020, "arg": 112}, "flags": [], "verified": false},
+        {"id": 4, "key": "KEY_3", "name": "Keyboard 3", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3021, "arg": 113}, "flags": [], "verified": false},
+        {"id": 5, "key": "KEY_4", "name": "Keyboard 4", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3022, "arg": 114}, "flags": [], "verified": false},
+        {"id": 6, "key": "KEY_5", "name": "Keyboard 5", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3023, "arg": 115}, "flags": [], "verified": false},
+        {"id": 7, "key": "KEY_6", "name": "Keyboard 6", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3024, "arg": 116}, "flags": [], "verified": false},
+        {"id": 8, "key": "KEY_7", "name": "Keyboard 7", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3025, "arg": 117}, "flags": [], "verified": false},
+        {"id": 9, "key": "KEY_8", "name": "Keyboard 8", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3026, "arg": 118}, "flags": [], "verified": false},
+        {"id": 10, "key": "KEY_9", "name": "Keyboard 9", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3027, "arg": 119}, "flags": [], "verified": false},
+        {"id": 11, "key": "KEY_CLR", "name": "Keyboard CLR", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3028, "arg": 121}, "flags": [], "verified": false},
+        {"id": 12, "key": "KEY_ENT", "name": "Keyboard ENT", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3029, "arg": 122}, "flags": [], "verified": false},
+        {"id": 13, "key": "OS1", "name": "Option Select 1", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3010, "arg": 100}, "flags": [], "verified": false},
+        {"id": 14, "key": "OS2", "name": "Option Select 2", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3011, "arg": 101}, "flags": [], "verified": false},
+        {"id": 15, "key": "OS3", "name": "Option Select 3", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3012, "arg": 102}, "flags": [], "verified": false},
+        {"id": 16, "key": "OS4", "name": "Option Select 4", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3013, "arg": 103}, "flags": [], "verified": false},
+        {"id": 17, "key": "OS5", "name": "Option Select 5", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3014, "arg": 106}, "flags": [], "verified": false},
+        {"id": 18, "key": "IP", "name": "I/P Pushbutton", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3015, "arg": 99}, "flags": [], "verified": false},
+        {"id": 19, "key": "AP", "name": "Function A/P", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3001, "arg": 128}, "flags": [], "verified": false},
+        {"id": 20, "key": "IFF", "name": "Function IFF", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3002, "arg": 129}, "flags": [], "verified": false},
+        {"id": 21, "key": "TCN", "name": "Function TCN", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3003, "arg": 130}, "flags": [], "verified": false},
+        {"id": 22, "key": "ILS", "name": "Function ILS", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3004, "arg": 131}, "flags": [], "verified": false},
+        {"id": 23, "key": "DL", "name": "Function D/L", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3005, "arg": 132}, "flags": [], "verified": false},
+        {"id": 24, "key": "BCN", "name": "Function BCN", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3006, "arg": 133}, "flags": [], "verified": false},
+        {"id": 25, "key": "ONOFF", "name": "Function ON/OFF", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3007, "arg": 134}, "flags": [], "verified": false},
+        {"id": 26, "key": "EMCON", "name": "Emission Control", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3017, "arg": 110}, "flags": [], "verified": false},
+        {"id": 27, "key": "COMM1_PULL", "name": "COMM 1 Knob Pull", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3008, "arg": 125}, "flags": [], "verified": false},
+        {"id": 28, "key": "COMM2_PULL", "name": "COMM 2 Knob Pull", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 25, "command": 3009, "arg": 127}, "flags": [], "verified": false},
+        {"id": 29, "key": "ADF", "name": "ADF Function Select Switch", "type": "switch", "positions": ["ADF1", "OFF", "ADF2"], "dcs": {"source": "dcsbios", "style": "tumb", "device": 25, "command": 3016, "arg": 107, "values": [-1, 0, 1]}, "flags": [], "verified": false},
+        {"id": 30, "key": "COMM1_VOL", "name": "COMM 1 Volume", "type": "axis", "dcs": {"source": "dcsbios", "style": "axis", "device": 25, "command": 3030, "arg": 108, "range": [0, 1]}, "flags": [], "verified": false},
+        {"id": 31, "key": "COMM2_VOL", "name": "COMM 2 Volume", "type": "axis", "dcs": {"source": "dcsbios", "style": "axis", "device": 25, "command": 3031, "arg": 123, "range": [0, 1]}, "flags": [], "verified": false},
+        {"id": 32, "key": "BRT", "name": "UFC Brightness", "type": "axis", "dcs": {"source": "dcsbios", "style": "axis", "device": 25, "command": 3032, "arg": 109, "range": [0, 1]}, "flags": [], "verified": false},
+        {"id": 33, "key": "COMM1_CHANNEL", "name": "COMM 1 Channel Knob", "type": "rotary", "dcs": {"source": "dcsbios", "style": "step", "device": 25, "command": 3033, "values": [-0.03, 0.03]}, "flags": [], "verified": false},
+        {"id": 34, "key": "COMM2_CHANNEL", "name": "COMM 2 Channel Knob", "type": "rotary", "dcs": {"source": "dcsbios", "style": "step", "device": 25, "command": 3034, "values": [-0.03, 0.03]}, "flags": [], "verified": false},
+        {"id": 64, "key": "SCRATCHPAD_NUMBER", "name": "Scratchpad Number", "type": "text", "length": 8, "dcs": {"source": "dcsbios", "style": "indication", "display": 6, "field": "UFC_ScratchPadNumberDisplay"}, "flags": [], "verified": false},
+        {"id": 65, "key": "SCRATCHPAD_STRING_1", "name": "Scratchpad String 1", "type": "text", "length": 2, "dcs": {"source": "dcsbios", "style": "indication", "display": 6, "field": "UFC_ScratchPadString1Display"}, "flags": [], "verified": false},
+        {"id": 66, "key": "SCRATCHPAD_STRING_2", "name": "Scratchpad String 2", "type": "text", "length": 2, "dcs": {"source": "dcsbios", "style": "indication", "display": 6, "field": "UFC_ScratchPadString2Display"}, "flags": [], "verified": false},
+        {"id": 67, "key": "COMM1_DISPLAY", "name": "COMM 1 Channel Display", "type": "text", "length": 2, "dcs": {"source": "dcsbios", "style": "indication", "display": 6, "field": "UFC_Comm1Display"}, "flags": [], "verified": false},
+        {"id": 68, "key": "COMM2_DISPLAY", "name": "COMM 2 Channel Display", "type": "text", "length": 2, "dcs": {"source": "dcsbios", "style": "indication", "display": 6, "field": "UFC_Comm2Display"}, "flags": [], "verified": false},
+        {"id": 69, "key": "OPTION_DISPLAY_1", "name": "Option Display 1", "type": "text", "length": 4, "dcs": {"source": "dcsbios", "style": "indication", "display": 6, "field": "UFC_OptionDisplay1"}, "flags": [], "verified": false},
+        {"id": 70, "key": "OPTION_DISPLAY_2", "name": "Option Display 2", "type": "text", "length": 4, "dcs": {"source": "dcsbios", "style": "indication", "display": 6, "field": "UFC_OptionDisplay2"}, "flags": [], "verified": false},
+        {"id": 71, "key": "OPTION_DISPLAY_3", "name": "Option Display 3", "type": "text", "length": 4, "dcs": {"source": "dcsbios", "style": "indication", "display": 6, "field": "UFC_OptionDisplay3"}, "flags": [], "verified": false},
+        {"id": 72, "key": "OPTION_DISPLAY_4", "name": "Option Display 4", "type": "text", "length": 4, "dcs": {"source": "dcsbios", "style": "indication", "display": 6, "field": "UFC_OptionDisplay4"}, "flags": [], "verified": false},
+        {"id": 73, "key": "OPTION_DISPLAY_5", "name": "Option Display 5", "type": "text", "length": 4, "dcs": {"source": "dcsbios", "style": "indication", "display": 6, "field": "UFC_OptionDisplay5"}, "flags": [], "verified": false},
+        {"id": 74, "key": "OPTION_CUEING_1", "name": "Option Cueing 1", "type": "text", "length": 1, "dcs": {"source": "dcsbios", "style": "indication", "display": 6, "field": "UFC_OptionCueing1"}, "flags": [], "verified": false},
+        {"id": 75, "key": "OPTION_CUEING_2", "name": "Option Cueing 2", "type": "text", "length": 1, "dcs": {"source": "dcsbios", "style": "indication", "display": 6, "field": "UFC_OptionCueing2"}, "flags": [], "verified": false},
+        {"id": 76, "key": "OPTION_CUEING_3", "name": "Option Cueing 3", "type": "text", "length": 1, "dcs": {"source": "dcsbios", "style": "indication", "display": 6, "field": "UFC_OptionCueing3"}, "flags": [], "verified": false},
+        {"id": 77, "key": "OPTION_CUEING_4", "name": "Option Cueing 4", "type": "text", "length": 1, "dcs": {"source": "dcsbios", "style": "indication", "display": 6, "field": "UFC_OptionCueing4"}, "flags": [], "verified": false},
+        {"id": 78, "key": "OPTION_CUEING_5", "name": "Option Cueing 5", "type": "text", "length": 1, "dcs": {"source": "dcsbios", "style": "indication", "display": 6, "field": "UFC_OptionCueing5"}, "flags": [], "verified": false}
+      ]
+    },
+    {
+      "id": 3,
+      "key": "APU",
+      "code": "Apu",
+      "name": "APU Panel",
+      "controls": [
+        {"id": 1, "key": "APU_CONTROL", "name": "APU Control Switch", "type": "switch", "positions": ["OFF", "ON"], "dcs": {"source": "dcsbios", "style": "magnetic", "device": 12, "command": 3001, "arg": 375}, "flags": ["magnetic"], "verified": false},
+        {"id": 2, "key": "ENGINE_CRANK", "name": "Engine Crank Switch", "type": "switch", "positions": ["LEFT", "OFF", "RIGHT"], "dcs": {"source": "dcsbios", "style": "magnetic3", "device": 12, "neg_command": 3002, "pos_command": 3003, "arg": 377, "values": [-1, 0, 1]}, "flags": ["magnetic"], "verified": false},
+        {"id": 3, "key": "APU_READY_LT", "name": "APU READY Light (green)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 376, "threshold": 0.3}, "flags": [], "verified": false}
+      ]
+    },
+    {
+      "id": 4,
+      "key": "FIRE_CAUTION",
+      "code": "FireCaution",
+      "name": "Fire Warning and Master Caution (glareshield)",
+      "controls": [
+        {"id": 1, "key": "MASTER_CAUTION_LT", "name": "MASTER CAUTION Light (yellow)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 13, "threshold": 0.3}, "flags": [], "verified": false},
+        {"id": 2, "key": "MASTER_CAUTION_RESET", "name": "MASTER CAUTION Reset", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 9, "command": 3008, "arg": 14}, "flags": [], "verified": false},
+        {"id": 3, "key": "FIRE_LEFT_LT", "name": "FIRE LEFT Light (red)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 10, "threshold": 0.3}, "flags": [], "verified": false},
+        {"id": 4, "key": "LEFT_FIRE_BTN", "name": "Left Engine/AMAD Fire Button", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 12, "command": 3010, "arg": 11}, "flags": [], "verified": false},
+        {"id": 5, "key": "LEFT_FIRE_COVER", "name": "Left Fire Button Cover", "type": "switch", "positions": ["CLOSED", "OPEN"], "dcs": {"source": "dcsbios", "style": "tumb", "device": 12, "command": 3012, "arg": 12, "values": [0, 1]}, "flags": ["guard"], "verified": false},
+        {"id": 6, "key": "FIRE_RIGHT_LT", "name": "FIRE RIGHT Light (red)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 26, "threshold": 0.3}, "flags": [], "verified": false},
+        {"id": 7, "key": "RIGHT_FIRE_BTN", "name": "Right Engine/AMAD Fire Button", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 12, "command": 3011, "arg": 27}, "flags": [], "verified": false},
+        {"id": 8, "key": "RIGHT_FIRE_COVER", "name": "Right Fire Button Cover", "type": "switch", "positions": ["CLOSED", "OPEN"], "dcs": {"source": "dcsbios", "style": "tumb", "device": 12, "command": 3013, "arg": 28, "values": [0, 1]}, "flags": ["guard"], "verified": false},
+        {"id": 9, "key": "FIRE_APU_LT", "name": "FIRE APU Light (red)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 29, "threshold": 0.3}, "flags": [], "verified": false},
+        {"id": 10, "key": "APU_FIRE_BTN", "name": "APU Fire Button", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 12, "command": 3009, "arg": 30}, "flags": [], "verified": false}
+      ]
+    },
+    {
+      "id": 5,
+      "key": "LH_ADVISORY",
+      "code": "LhAdvisory",
+      "name": "Left Advisory Panel",
+      "controls": [
+        {"id": 1, "key": "L_BLEED", "name": "L BLEED (red)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 17, "threshold": 0.3}, "flags": [], "verified": false},
+        {"id": 2, "key": "R_BLEED", "name": "R BLEED (red)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 18, "threshold": 0.3}, "flags": [], "verified": false},
+        {"id": 3, "key": "SPD_BRK", "name": "SPD BRK (green)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 19, "threshold": 0.3}, "flags": [], "verified": false},
+        {"id": 4, "key": "STBY", "name": "STBY (green)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 20, "threshold": 0.3}, "flags": [], "verified": false},
+        {"id": 5, "key": "L_BAR_RED", "name": "L BAR (red)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 21, "threshold": 0.3}, "flags": [], "verified": false},
+        {"id": 6, "key": "REC", "name": "REC (green)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 22, "threshold": 0.3}, "flags": [], "verified": false},
+        {"id": 7, "key": "L_BAR_GREEN", "name": "L BAR (green)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 23, "threshold": 0.3}, "flags": [], "verified": false},
+        {"id": 8, "key": "XMIT", "name": "XMIT (green)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 24, "threshold": 0.3}, "flags": [], "verified": false},
+        {"id": 9, "key": "ASPJ_OH", "name": "ASPJ OH (yellow)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 25, "threshold": 0.3}, "flags": [], "verified": false},
+        {"id": 10, "key": "GO", "name": "GO (green)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 15, "threshold": 0.3}, "flags": [], "verified": false},
+        {"id": 11, "key": "NO_GO", "name": "NO GO (yellow)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 16, "threshold": 0.3}, "flags": [], "verified": false}
+      ]
+    },
+    {
+      "id": 6,
+      "key": "HUD_CONTROL",
+      "code": "HudControl",
+      "name": "HUD Control Panel",
+      "controls": [
+        {"id": 1, "key": "SYM_REJ", "name": "Symbology Reject", "type": "selector", "positions": ["NORM", "REJ1", "REJ2"], "dcs": {"source": "dcsbios", "style": "tumb", "device": 34, "command": 3001, "arg": 140, "values": [0, 0.1, 0.2]}, "flags": [], "verified": false},
+        {"id": 2, "key": "SYM_BRT", "name": "Symbology Brightness", "type": "axis", "dcs": {"source": "dcsbios", "style": "axis", "device": 34, "command": 3002, "arg": 141, "range": [0, 1]}, "flags": [], "verified": false},
+        {"id": 3, "key": "SYM_BRT_SELECT", "name": "Symbology Brightness Selector", "type": "switch", "positions": ["NIGHT", "DAY"], "dcs": {"source": "dcsbios", "style": "tumb", "device": 34, "command": 3003, "arg": 142, "values": [0, 1]}, "flags": [], "verified": false},
+        {"id": 4, "key": "BLACK_LVL", "name": "Black Level", "type": "axis", "dcs": {"source": "dcsbios", "style": "axis", "device": 34, "command": 3004, "arg": 143, "range": [0, 1]}, "flags": [], "verified": false},
+        {"id": 5, "key": "VIDEO_CONTROL", "name": "HUD Video Control", "type": "selector", "positions": ["W_B", "VID", "OFF"], "dcs": {"source": "dcsbios", "style": "tumb", "device": 34, "command": 3005, "arg": 144, "values": [0, 0.1, 0.2]}, "flags": [], "verified": false},
+        {"id": 6, "key": "BALANCE", "name": "Balance", "type": "axis", "dcs": {"source": "dcsbios", "style": "axis", "device": 34, "command": 3006, "arg": 145, "range": [0, 1]}, "flags": [], "verified": false},
+        {"id": 7, "key": "AOA_INDEXER_BRT", "name": "AOA Indexer Brightness", "type": "axis", "dcs": {"source": "dcsbios", "style": "axis", "device": 34, "command": 3007, "arg": 146, "range": [0, 1]}, "flags": [], "verified": false},
+        {"id": 8, "key": "ALT", "name": "Altitude Switch", "type": "switch", "positions": ["RDR", "BARO"], "dcs": {"source": "dcsbios", "style": "tumb", "device": 34, "command": 3008, "arg": 147, "values": [0, 1]}, "flags": [], "verified": false},
+        {"id": 9, "key": "ATT", "name": "Attitude Selector", "type": "switch", "positions": ["INS", "AUTO", "STBY"], "dcs": {"source": "dcsbios", "style": "tumb", "device": 34, "command": 3009, "arg": 148, "values": [-1, 0, 1]}, "flags": [], "verified": false}
+      ]
+    },
+    {
+      "id": 7,
+      "key": "SPIN_RECOVERY",
+      "code": "SpinRecovery",
+      "name": "Map Gain / Spin Recovery Panel",
+      "controls": [
+        {"id": 1, "key": "SPIN_LT", "name": "SPIN Light (yellow)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 137, "threshold": 0.3}, "flags": [], "verified": false},
+        {"id": 2, "key": "SPIN_RECOVERY_COVER", "name": "Spin Recovery Switch Cover", "type": "switch", "positions": ["CLOSED", "OPEN"], "dcs": {"source": "dcsbios", "style": "tumb", "device": 2, "command": 3008, "arg": 139, "values": [0, 1]}, "flags": ["guard"], "verified": false},
+        {"id": 3, "key": "SPIN_RECOVERY", "name": "Spin Recovery Switch", "type": "switch", "positions": ["NORM", "RCVY"], "dcs": {"source": "dcsbios", "style": "tumb", "device": 2, "command": 3009, "arg": 138, "values": [0, 1]}, "flags": [], "verified": false},
+        {"id": 4, "key": "IR_COOL", "name": "IR Cooling Switch", "type": "switch", "positions": ["ORIDE", "NORM", "OFF"], "dcs": {"source": "dcsbios", "style": "tumb", "device": 23, "command": 3013, "arg": 135, "values": [0, 0.1, 0.2]}, "flags": [], "verified": false},
+        {"id": 5, "key": "HMD_BRT", "name": "HMD OFF/BRT Knob", "type": "axis", "dcs": {"source": "dcsbios", "style": "axis", "device": 58, "command": 3001, "arg": 136, "range": [0, 0.75]}, "flags": [], "verified": false}
+      ]
+    },
+    {
+      "id": 8,
+      "key": "AOA_INDEXER",
+      "code": "AoaIndexer",
+      "name": "AOA Indexer",
+      "controls": [
+        {"id": 1, "key": "HIGH", "name": "AOA High (green)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 4, "threshold": 0.3}, "flags": [], "verified": false},
+        {"id": 2, "key": "NORMAL", "name": "AOA On-speed (yellow)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 5, "threshold": 0.3}, "flags": [], "verified": false},
+        {"id": 3, "key": "LOW", "name": "AOA Low (red)", "type": "lamp", "dcs": {"source": "dcsbios", "style": "lamp", "arg": 6, "threshold": 0.3}, "flags": [], "verified": false}
+      ]
+    },
+    {
+      "id": 9,
+      "key": "IFEI",
+      "code": "Ifei",
+      "name": "Integrated Fuel/Engine Indicator",
+      "controls": [
+        {"id": 1, "key": "MODE", "name": "Mode Button", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 33, "command": 3001, "arg": 168}, "flags": [], "verified": false},
+        {"id": 2, "key": "QTY", "name": "QTY Button", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 33, "command": 3002, "arg": 169}, "flags": [], "verified": false},
+        {"id": 3, "key": "UP", "name": "Up Arrow", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 33, "command": 3003, "arg": 170}, "flags": [], "verified": false},
+        {"id": 4, "key": "DOWN", "name": "Down Arrow", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 33, "command": 3004, "arg": 171}, "flags": [], "verified": false},
+        {"id": 5, "key": "ZONE", "name": "ZONE Button", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 33, "command": 3005, "arg": 172}, "flags": [], "verified": false},
+        {"id": 6, "key": "ET", "name": "ET Button", "type": "button", "positions": ["RELEASED", "PRESSED"], "dcs": {"source": "dcsbios", "style": "button", "device": 33, "command": 3006, "arg": 173}, "flags": [], "verified": false},
+        {"id": 7, "key": "BRT", "name": "IFEI Brightness", "type": "axis", "dcs": {"source": "dcsbios", "style": "axis", "device": 33, "command": 3007, "arg": 174, "range": [0, 1]}, "flags": [], "verified": false},
+        {"id": 64, "key": "BINGO", "name": "Bingo", "type": "text", "length": 5, "dcs": {"source": "dcsbios", "style": "indication", "display": 5, "field": "txt_BINGO"}, "flags": [], "verified": false},
+        {"id": 65, "key": "FUEL_UP", "name": "Fuel Up", "type": "text", "length": 6, "dcs": {"source": "dcsbios", "style": "indication", "display": 5, "field": "txt_FUEL_UP"}, "flags": [], "verified": false},
+        {"id": 66, "key": "FUEL_DOWN", "name": "Fuel Down", "type": "text", "length": 6, "dcs": {"source": "dcsbios", "style": "indication", "display": 5, "field": "txt_FUEL_DOWN"}, "flags": [], "verified": false},
+        {"id": 67, "key": "RPM_L", "name": "Rpm L", "type": "text", "length": 3, "dcs": {"source": "dcsbios", "style": "indication", "display": 5, "field": "txt_RPM_L"}, "flags": [], "verified": false},
+        {"id": 68, "key": "RPM_R", "name": "Rpm R", "type": "text", "length": 3, "dcs": {"source": "dcsbios", "style": "indication", "display": 5, "field": "txt_RPM_R"}, "flags": [], "verified": false},
+        {"id": 69, "key": "TEMP_L", "name": "Temp L", "type": "text", "length": 3, "dcs": {"source": "dcsbios", "style": "indication", "display": 5, "field": "txt_TEMP_L"}, "flags": [], "verified": false},
+        {"id": 70, "key": "TEMP_R", "name": "Temp R", "type": "text", "length": 3, "dcs": {"source": "dcsbios", "style": "indication", "display": 5, "field": "txt_TEMP_R"}, "flags": [], "verified": false},
+        {"id": 71, "key": "FF_L", "name": "Ff L", "type": "text", "length": 3, "dcs": {"source": "dcsbios", "style": "indication", "display": 5, "field": "txt_FF_L"}, "flags": [], "verified": false},
+        {"id": 72, "key": "FF_R", "name": "Ff R", "type": "text", "length": 3, "dcs": {"source": "dcsbios", "style": "indication", "display": 5, "field": "txt_FF_R"}, "flags": [], "verified": false},
+        {"id": 73, "key": "CLOCK_H", "name": "Clock H", "type": "text", "length": 2, "dcs": {"source": "dcsbios", "style": "indication", "display": 5, "field": "txt_CLOCK_H"}, "flags": [], "verified": false},
+        {"id": 74, "key": "CLOCK_M", "name": "Clock M", "type": "text", "length": 2, "dcs": {"source": "dcsbios", "style": "indication", "display": 5, "field": "txt_CLOCK_M"}, "flags": [], "verified": false},
+        {"id": 75, "key": "CLOCK_S", "name": "Clock S", "type": "text", "length": 2, "dcs": {"source": "dcsbios", "style": "indication", "display": 5, "field": "txt_CLOCK_S"}, "flags": [], "verified": false}
+      ]
+    },
+    {
+      "id": 10,
+      "key": "ANTENNA_SELECT",
+      "code": "AntennaSelect",
+      "name": "Antenna Select Panel",
+      "controls": [
+        {"id": 1, "key": "COMM1_ANT", "name": "COMM 1 Antenna Selector", "type": "switch", "positions": ["UPPER", "AUTO", "LOWER"], "dcs": {"source": "dcsbios", "style": "tumb", "device": 50, "command": 3001, "arg": 373, "values": [-1, 0, 1]}, "flags": [], "verified": false},
+        {"id": 2, "key": "IFF_ANT", "name": "IFF Antenna Selector", "type": "switch", "positions": ["UPPER", "BOTH", "LOWER"], "dcs": {"source": "dcsbios", "style": "tumb", "device": 50, "command": 3002, "arg": 374, "values": [-1, 0, 1]}, "flags": [], "verified": false}
+      ]
+    },
+    {
+      "id": 11,
+      "key": "STBY_COMPASS",
+      "code": "StbyCompass",
+      "name": "Standby Magnetic Compass",
+      "controls": [
+        {"id": 1, "key": "HEADING", "name": "Compass Heading", "type": "gauge", "dcs": {"source": "dcsbios", "style": "gauge", "arg": 149, "range": [0, 1]}, "flags": [], "verified": false},
+        {"id": 2, "key": "PITCH", "name": "Compass Pitch", "type": "gauge", "dcs": {"source": "dcsbios", "style": "gauge", "arg": 150, "range": [-1, 1]}, "flags": [], "verified": false},
+        {"id": 3, "key": "BANK", "name": "Compass Bank", "type": "gauge", "dcs": {"source": "dcsbios", "style": "gauge", "arg": 151, "range": [-1, 1]}, "flags": [], "verified": false}
+      ]
+    }
+  ]
+}

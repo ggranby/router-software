@@ -7,6 +7,7 @@ globals = {
     "LuaExportStop",
     "LuaExportActivityNextEvent",
     "LuaExportAfterNextFrame",
+    "LuaExportBeforeNextFrame",
     "ExportReceiveData",
 }
 
@@ -16,6 +17,7 @@ read_globals = {
     "lfs",
     "log",
     "LoGetSelf",
+    "LoGetSelfData",
     "LoGetModelTime",
     "GetDevice",
     "list_indication",

@@ -1,0 +1,392 @@
+{
+  "protocol": "Hornet Link v2",
+  "version": 2,
+  "notes": "Machine-readable companion to docs/PROTOCOL_V2.md. Programs/tools/generate_hornet_catalog.py turns this file into libraries/HornetLink/src/protocol/HnSpec.h and docs/PROTOCOL_V2_MESSAGES.md. Edit this file, not the generated outputs. Enum prefixes avoid names that Arduino cores define as macros (INPUT, CONFIG_*).",
+  "limits": {
+    "header_bytes": 6,
+    "crc_bytes": 2,
+    "max_payload": 120,
+    "max_name": 16
+  },
+  "addresses": [
+    {
+      "name": "BROADCAST",
+      "value": 0,
+      "description": "Every node processes the frame. Never used as a source."
+    },
+    {
+      "name": "FIRST_SLAVE",
+      "value": 1,
+      "description": "Lowest RS-485 slave address."
+    },
+    {
+      "name": "LAST_SLAVE",
+      "value": 239,
+      "description": "Highest RS-485 slave address."
+    },
+    {
+      "name": "BRIDGE",
+      "value": 253,
+      "description": "The PC bridge (hornet-link.exe)."
+    },
+    {
+      "name": "LINK_NODE",
+      "value": 254,
+      "description": "The board attached to the PC over USB: a bus master or a standalone panel."
+    },
+    {
+      "name": "UNASSIGNED",
+      "value": 255,
+      "description": "A slave that has no bus address yet. Only used as a source in HELLO during discovery."
+    }
+  ],
+  "messages": [
+    {
+      "name": "HELLO_REQUEST",
+      "id": 1,
+      "direction": "bridge/master -> node",
+      "payload": "empty",
+      "description": "Ask a node to identify itself. The node answers with HELLO."
+    },
+    {
+      "name": "HELLO",
+      "id": 2,
+      "direction": "node -> bridge/master",
+      "payload": "[proto_version:u8][role:u8][fw_major:u8][fw_minor:u8][catalog_hash:u32][board_id:8][name_len:u8][name:name_len]",
+      "description": "Identity and capabilities. role is a bit set of ROLE_*."
+    },
+    {
+      "name": "DESCRIBE_REQUEST",
+      "id": 3,
+      "direction": "bridge/master -> node",
+      "payload": "[page:u8]",
+      "description": "Ask for one page of the node's control list."
+    },
+    {
+      "name": "DESCRIBE",
+      "id": 4,
+      "direction": "node -> bridge/master",
+      "payload": "[page:u8][page_count:u8]([control_id:u16][role:u8])*",
+      "description": "Controls the node owns. role 0 = input (node -> sim), 1 = output (sim -> node)."
+    },
+    {
+      "name": "SUBSCRIBE",
+      "id": 5,
+      "direction": "node -> bridge",
+      "payload": "[scope:u8]([id:u16])*",
+      "description": "Replace the node's output subscription. scope is one of SUBSCRIBE_*."
+    },
+    {
+      "name": "STATE",
+      "id": 16,
+      "direction": "bridge -> nodes (broadcast)",
+      "payload": "([control_id:u16][kind:u8][value])*",
+      "description": "Sim state keyed by catalogue id. kind is one of VALUE_*: BOOL/POSITION value is u8, ANALOG is u16, TEXT is [len:u8][bytes]."
+    },
+    {
+      "name": "INPUT",
+      "id": 17,
+      "direction": "node -> bridge",
+      "payload": "([control_id:u16][action:u8][arg:u16])*",
+      "description": "Cockpit input events. action is one of ACTION_*. The frame sequence number is used for duplicate detection and ACK."
+    },
+    {
+      "name": "SYNC_REQUEST",
+      "id": 18,
+      "direction": "bridge/master -> node",
+      "payload": "empty",
+      "description": "Ask the node to report the physical position of every input it owns."
+    },
+    {
+      "name": "SYNC_REPORT",
+      "id": 19,
+      "direction": "node -> bridge",
+      "payload": "[flags:u8]([control_id:u16][value:u16])*",
+      "description": "Physical positions (position index, or 0-65535 for axes). flags bit 0 = last page of the report."
+    },
+    {
+      "name": "MODE",
+      "id": 32,
+      "direction": "bridge -> nodes",
+      "payload": "[mode:u8]",
+      "description": "Change operating mode. mode is one of MODE_*."
+    },
+    {
+      "name": "MODE_ACK",
+      "id": 33,
+      "direction": "node -> bridge",
+      "payload": "[mode:u8]",
+      "description": "The mode the node applied."
+    },
+    {
+      "name": "ACK",
+      "id": 48,
+      "direction": "any",
+      "payload": "[acked_seq:u8]",
+      "description": "The frame with sequence acked_seq was accepted."
+    },
+    {
+      "name": "NACK",
+      "id": 49,
+      "direction": "any",
+      "payload": "[acked_seq:u8][reason:u8][control_id:u16]",
+      "description": "The frame was rejected. reason is one of NACK_*."
+    },
+    {
+      "name": "DIAG_REQUEST",
+      "id": 64,
+      "direction": "bridge/master -> node",
+      "payload": "empty",
+      "description": "Ask for diagnostic counters."
+    },
+    {
+      "name": "DIAG",
+      "id": 65,
+      "direction": "node -> bridge",
+      "payload": "[crc_errors:u16][framing_errors:u16][overflows:u16][dropped_inputs:u16][last_error:u8][free_ram:u16][text_len:u8][text]",
+      "description": "Counters since boot plus an optional short text message."
+    },
+    {
+      "name": "CONFIG",
+      "id": 80,
+      "direction": "bridge/master -> node",
+      "payload": "[key:u8][value...]",
+      "description": "Change a setting. key is one of CFG_*. The node answers ACK or NACK."
+    },
+    {
+      "name": "HEARTBEAT",
+      "id": 96,
+      "direction": "any",
+      "payload": "empty",
+      "description": "Keeps an idle USB link alive."
+    },
+    {
+      "name": "POLL",
+      "id": 112,
+      "direction": "master -> slave",
+      "payload": "empty",
+      "description": "The addressed slave may transmit exactly one frame now."
+    },
+    {
+      "name": "POLL_EMPTY",
+      "id": 113,
+      "direction": "slave -> master",
+      "payload": "empty",
+      "description": "Reply to POLL when the slave has nothing to send."
+    },
+    {
+      "name": "DISCOVER",
+      "id": 114,
+      "direction": "master -> slaves (broadcast)",
+      "payload": "[slot_count:u8][slot_ms:u8]",
+      "description": "Slaves that have not been polled recently answer HELLO in one random slot."
+    },
+    {
+      "name": "BUS_EVENT",
+      "id": 115,
+      "direction": "master -> bridge",
+      "payload": "[event:u8][address:u8]",
+      "description": "A slave joined, dropped off or has an address conflict. event is one of BUS_*."
+    }
+  ],
+  "enums": {
+    "ROLE": [
+      {
+        "name": "PANEL",
+        "value": 1,
+        "description": "Owns inputs and/or outputs."
+      },
+      {
+        "name": "BUS_MASTER",
+        "value": 2,
+        "description": "Relays an RS-485 bus."
+      },
+      {
+        "name": "BUS_SLAVE",
+        "value": 4,
+        "description": "Sits on an RS-485 bus."
+      }
+    ],
+    "VALUE": [
+      {
+        "name": "BOOL",
+        "value": 0,
+        "description": "u8, 0 or 1 (lamps)."
+      },
+      {
+        "name": "POSITION",
+        "value": 1,
+        "description": "u8 position index (switches, selectors, buttons)."
+      },
+      {
+        "name": "ANALOG",
+        "value": 2,
+        "description": "u16, 0-65535 (axes, gauges)."
+      },
+      {
+        "name": "TEXT",
+        "value": 3,
+        "description": "[len:u8][bytes], fixed catalogue length."
+      }
+    ],
+    "NACK": [
+      {
+        "name": "UNKNOWN_CONTROL",
+        "value": 1,
+        "description": "The control id is not in the catalogue."
+      },
+      {
+        "name": "BAD_VALUE",
+        "value": 2,
+        "description": "The value or action does not fit the control type."
+      },
+      {
+        "name": "WRONG_MODE",
+        "value": 3,
+        "description": "Inputs are ignored in the current mode."
+      },
+      {
+        "name": "BAD_FRAME",
+        "value": 4,
+        "description": "The payload is malformed."
+      },
+      {
+        "name": "CATALOG_MISMATCH",
+        "value": 5,
+        "description": "The node was built against a different catalogue hash."
+      },
+      {
+        "name": "UNSUPPORTED",
+        "value": 6,
+        "description": "The message or config key is not supported."
+      }
+    ],
+    "MODE": [
+      {
+        "name": "SIM",
+        "value": 0,
+        "description": "Live DCS data; inputs forwarded to DCS."
+      },
+      {
+        "name": "LAMP_TEST",
+        "value": 1,
+        "description": "All outputs on; inputs not forwarded."
+      },
+      {
+        "name": "MAINTENANCE",
+        "value": 2,
+        "description": "Panel self-check; DCS not required."
+      },
+      {
+        "name": "WIRING_TEST",
+        "value": 3,
+        "description": "Each input reports its name when actuated; inputs not forwarded."
+      }
+    ],
+    "SUBSCRIBE": [
+      {
+        "name": "CLEAR",
+        "value": 0,
+        "description": "No outputs."
+      },
+      {
+        "name": "CONTROLS",
+        "value": 1,
+        "description": "The listed control ids."
+      },
+      {
+        "name": "PANELS",
+        "value": 2,
+        "description": "Every output in the listed panel ids (high byte of a control id)."
+      },
+      {
+        "name": "ALL",
+        "value": 3,
+        "description": "Every output."
+      }
+    ],
+    "BUS": [
+      {
+        "name": "JOIN",
+        "value": 1,
+        "description": "The slave answered for the first time, or again after being dropped. The bridge should resend full state."
+      },
+      {
+        "name": "DROP",
+        "value": 2,
+        "description": "The slave missed too many polls and is now polled slowly."
+      },
+      {
+        "name": "CONFLICT",
+        "value": 3,
+        "description": "Two boards answered with the same bus address."
+      }
+    ],
+    "DESCRIBE_ROLE": [
+      {
+        "name": "INPUT",
+        "value": 0,
+        "description": "Cockpit to sim."
+      },
+      {
+        "name": "OUTPUT",
+        "value": 1,
+        "description": "Sim to cockpit."
+      }
+    ],
+    "ACTION": [
+      {
+        "name": "SET_POSITION",
+        "value": 0,
+        "description": "Move to position index arg."
+      },
+      {
+        "name": "STEP",
+        "value": 1,
+        "description": "Relative step; arg is a signed 16-bit count."
+      },
+      {
+        "name": "PRESS",
+        "value": 2,
+        "description": "Momentary press."
+      },
+      {
+        "name": "RELEASE",
+        "value": 3,
+        "description": "Momentary release."
+      },
+      {
+        "name": "ANALOG",
+        "value": 4,
+        "description": "Absolute analog value 0-65535."
+      }
+    ],
+    "CFG": [
+      {
+        "name": "BUS_ADDRESS",
+        "value": 1,
+        "description": "[address:u8] Change the slave bus address (RAM only until SAVE)."
+      },
+      {
+        "name": "CALIBRATION",
+        "value": 2,
+        "description": "[control_id:u16][min:u16][max:u16] Axis calibration."
+      },
+      {
+        "name": "SAVE",
+        "value": 3,
+        "description": "Persist settings through the sketch's save hook."
+      }
+    ]
+  },
+  "timing": {
+    "baud": 250000,
+    "byte_time_us": 40,
+    "turnaround_us": 100,
+    "reply_timeout_ms": 8,
+    "missed_polls_before_drop": 5,
+    "discover_interval_ms": 1000,
+    "discover_slots": 8,
+    "discover_slot_ms": 2
+  }
+}
