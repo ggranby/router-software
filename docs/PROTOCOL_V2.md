@@ -82,11 +82,12 @@ Optional extras:
 - **Hardware (DIP switches)**: read the switches in `setup()` and pass the
   value to `beginRs485()`.
 - **Discovery**: `master.enableDiscovery(true)`. Once a second the master
-  broadcasts `DISCOVER [8 slots][2 ms]`. A slave that has not been polled for
-  2 s answers HELLO in one random slot. Its random seed includes its board ID
-  and address, so two boards seldom pick the same slot. The master adds new
-  addresses to its poll list. If two HELLOs with the same address but different
-  board IDs arrive in one window, it reports `BUS_EVENT CONFLICT`.
+  broadcasts `DISCOVER [8 slots][2 ms]`. Every slave answers HELLO in one
+  random slot, including slaves already being polled. Its random seed includes
+  its board ID and address, so duplicate fixed addresses can identify themselves
+  in separate slots. The master adds new addresses to its poll list. If two
+  HELLOs with the same address but different board IDs arrive in one window, it
+  reports `BUS_EVENT CONFLICT`.
 
 ## 4. Bus discipline (RS-485)
 
@@ -99,9 +100,11 @@ Optional extras:
    queued.
 4. The master waits up to 8 ms for the reply, then moves on to the next slave.
 
-Two nodes never drive the bus at the same time, so frames can't collide. The
-only exception is the DISCOVER window, where the random slots keep replies
-apart. The unit tests run a simulated bus with three slaves and fail if any
+Normally only the polled node drives the bus. The DISCOVER window uses random
+slots, including for already-polled nodes, to identify duplicate fixed
+addresses. Duplicate boards can collide when answering a poll; the discovery
+window provides a separate opportunity for their HELLOs to arrive in different
+slots. The unit tests run a simulated bus with three slaves and fail if any
 slave ever transmits out of turn.
 
 **Slave send priority** (one frame per poll):

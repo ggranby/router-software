@@ -10,11 +10,10 @@
 
 using namespace Hornet;
 
-// ── Keypad: 4 rows x 3 columns (1 2 3 / 4 5 6 / 7 8 9 / CLR 0 ENT) ────────
+// ── Keypad: 4 rows x 3 columns; ESP32 adds two rows for extra buttons ──────
 #if defined(ESP32)
-// GPIO34-39 are input-only; the contacts assigned there require external
-// pull-up resistors.
-const uint8_t ROWS[] = {18, 19, 21, 22};
+// GPIO34-39 are input-only; encoder contacts there require external pull-ups.
+const uint8_t ROWS[] = {18, 19, 21, 22, 16, 17};
 const uint8_t COLS[] = {23, 25, 26};
 #else
 const uint8_t ROWS[] = {22, 23, 24, 25};
@@ -35,9 +34,9 @@ Button keyClr(UFC::KeyClr, keypad.key(3, 0));
 Button key0(UFC::Key0, keypad.key(3, 1));
 Button keyEnt(UFC::KeyEnt, keypad.key(3, 2));
 
-// ── Option select buttons and function keys on direct pins ────────────────
+// ── Option select buttons and function keys ───────────────────────────────
 #if defined(ESP32)
-Button os1(UFC::Os1, 16);
+Button os1(UFC::Os1, keypad.key(4, 0));
 Button os2(UFC::Os2, 2);
 Button os3(UFC::Os3, 4);
 Button os4(UFC::Os4, 5);
@@ -46,10 +45,10 @@ Button ap(UFC::Ap, 13);
 Button iff(UFC::Iff, 14);
 Button tcn(UFC::Tcn, 15);
 Button ils(UFC::Ils, 32);
-Button dl(UFC::Dl, 17);
+Button dl(UFC::Dl, keypad.key(4, 1));
 Button bcn(UFC::Bcn, 27);
-Button onOff(UFC::Onoff, 35);
-Switch adf(UFC::Adf, 33, none, 34);
+Button onOff(UFC::Onoff, keypad.key(4, 2));
+Switch adf(UFC::Adf, 33, none, keypad.key(5, 0));
 #else
 Button os1(UFC::Os1, 30);
 Button os2(UFC::Os2, 31);
@@ -70,17 +69,15 @@ Switch adf(UFC::Adf, 42, none, 43);                 // ADF1 / OFF / ADF2
 Pot comm1Vol(UFC::Comm1Vol, A0);
 Pot comm2Vol(UFC::Comm2Vol, A1);
 Pot brightness(UFC::Brt, A2);
+#if defined(ESP32)
+Encoder comm1Channel(UFC::Comm1Channel, 34, 35); // external pull-ups required
+Encoder comm2Channel(UFC::Comm2Channel, 36, 39); // external pull-ups required
+Button comm1Pull(UFC::Comm1Pull, keypad.key(5, 1));
+Button comm2Pull(UFC::Comm2Pull, keypad.key(5, 2));
+#else
 Encoder comm1Channel(UFC::Comm1Channel, 16, 17);
 Encoder comm2Channel(UFC::Comm2Channel,
-#if defined(ESP32)
-                     36, 39);
-#else
                      46, 47);
-#endif
-#if defined(ESP32)
-Button comm1Pull(UFC::Comm1Pull, 35);
-Button comm2Pull(UFC::Comm2Pull, 34);
-#else
 Button comm1Pull(UFC::Comm1Pull, 44);
 Button comm2Pull(UFC::Comm2Pull, 45);
 #endif

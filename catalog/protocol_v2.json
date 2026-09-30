@@ -179,7 +179,7 @@
       "id": 114,
       "direction": "master -> slaves (broadcast)",
       "payload": "[slot_count:u8][slot_ms:u8]",
-      "description": "Slaves that have not been polled recently answer HELLO in one random slot."
+      "description": "All slaves answer HELLO in one random slot, including already-polled slaves, to reveal duplicate addresses."
     },
     {
       "name": "BUS_EVENT",

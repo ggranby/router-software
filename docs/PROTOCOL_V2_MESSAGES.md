@@ -27,7 +27,7 @@ Narrative, framing and bus rules: [PROTOCOL_V2.md](PROTOCOL_V2.md).
 | `HEARTBEAT` | `0x60` | any | `empty` | Keeps an idle USB link alive. |
 | `POLL` | `0x70` | master -> slave | `empty` | The addressed slave may transmit exactly one frame now. |
 | `POLL_EMPTY` | `0x71` | slave -> master | `empty` | Reply to POLL when the slave has nothing to send. |
-| `DISCOVER` | `0x72` | master -> slaves (broadcast) | `[slot_count:u8][slot_ms:u8]` | Slaves that have not been polled recently answer HELLO in one random slot. |
+| `DISCOVER` | `0x72` | master -> slaves (broadcast) | `[slot_count:u8][slot_ms:u8]` | All slaves answer HELLO in one random slot, including already-polled slaves, to reveal duplicate addresses. |
 | `BUS_EVENT` | `0x73` | master -> bridge | `[event:u8][address:u8]` | A slave joined, dropped off or has an address conflict. event is one of BUS_*. |
 
 ## Addresses

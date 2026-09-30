@@ -19,7 +19,11 @@ add_executable(hornet-link-tests
     test_hornet_v2.cpp
 )
 
-target_include_directories(hornet-link-tests PRIVATE ${HORNET_LINK_SRC_DIR} ${HORNET_LINK_LIB_DIR})
+target_include_directories(hornet-link-tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/arduino_stub
+    ${HORNET_LINK_SRC_DIR}
+    ${HORNET_LINK_LIB_DIR}
+)
 
 if(WIN32)
     target_compile_definitions(hornet-link-tests PRIVATE

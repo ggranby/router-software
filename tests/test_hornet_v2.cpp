@@ -3,10 +3,12 @@
 // RS-485 bus with a master and several slaves.
 
 #include "HornetFilters.h"
+#include "HornetElements.h"
 #include "HornetNative.hpp"
 #include "protocol/HnMaster.h"
 #include "test_framework.hpp"
 
+#include <algorithm>
 #include <cstring>
 #include <deque>
 #include <random>
@@ -130,11 +132,13 @@ struct TestPanel : hn::NodeHandler {
     std::vector<uint16_t> outputs;
     std::vector<hn::StateRecord> received;
     std::vector<std::string> texts;
+    uint8_t boardId[8] = {};
     uint8_t mode = hn::MODE_SIM;
 
     void fillHello(hn::Hello& h) override {
         h.catalogHash = Hornet::kCatalogHash;
         std::strncpy(h.name, name.c_str(), hn::kMaxName);
+        std::memcpy(h.boardId, boardId, sizeof(boardId));
     }
     void onState(const hn::StateRecord& r) override {
         for (uint16_t id : outputs)
@@ -174,6 +178,12 @@ const uint16_t kKey1 = Hornet::UFC::Key1.id;
 const uint16_t kAaLt = Hornet::MasterArm::AaLt.id;
 const uint16_t kScratch = Hornet::UFC::ScratchpadNumber.id;
 const uint16_t kComm1Vol = Hornet::UFC::Comm1Vol.id;
+
+std::vector<std::string> displayedText;
+
+void captureText(const char* text, uint8_t length) {
+    displayedText.emplace_back(text, length);
+}
 
 // ── Test groups ─────────────────────────────────────────────────────────────
 
@@ -505,6 +515,35 @@ void filterTests() {
     });
 }
 
+void elementTests() {
+    auto s = createSuite("Library - text display lamp test");
+
+    addTest(s, "Text display restores the latest cached value after lamp test", []() {
+        displayedText.clear();
+        Hornet::TextDisplay display(Hornet::UFC::ScratchpadNumber, captureText);
+        const uint8_t initial[] = {'1', '2', '3', '4'};
+        hn::StateRecord state;
+        state.id = kScratch;
+        state.kind = hn::VALUE_TEXT;
+        state.text = initial;
+        state.textLen = sizeof(initial);
+        display.onState(state);
+        EXPECT_STR_EQ(displayedText.back(), std::string("1234    "));
+
+        display.onMode(hn::MODE_LAMP_TEST);
+        EXPECT_STR_EQ(displayedText.back(), std::string("88888888"));
+
+        const uint8_t latest[] = {'A', 'B'};
+        state.text = latest;
+        state.textLen = sizeof(latest);
+        display.onState(state);
+        EXPECT_EQ(displayedText.size(), static_cast<size_t>(2));
+
+        display.onMode(hn::MODE_SIM);
+        EXPECT_STR_EQ(displayedText.back(), std::string("AB      "));
+    });
+}
+
 void nativeTests() {
     auto s = createSuite("Bridge - native exporter, inputs, sync");
 
@@ -746,6 +785,32 @@ void usbTests() {
         EXPECT_EQ(rig.panel.received.size(), static_cast<size_t>(2));
         EXPECT_STR_EQ(rig.panel.texts.at(0), std::string("  1234  "));
     });
+
+    addTest(s, "A USB burst of MODE requests receives one reply per request", []() {
+        UsbPort port;
+        TestPanel panel;
+        hn::Node node(port, panel);
+        hn::FrameDecoder decoder;
+        std::vector<uint8_t> responseTypes;
+        port.out = [&](const uint8_t* bytes, size_t len) {
+            for (size_t i = 0; i < len; i++)
+                if (decoder.feed(bytes[i]) == hn::FrameDecoder::Result::Frame)
+                    responseTypes.push_back(decoder.header().type);
+        };
+        node.beginUsb();
+        node.update(0);
+        responseTypes.clear();
+
+        for (uint8_t i = 0; i < 20; i++) {
+            const uint8_t mode = i & 1 ? hn::MODE_LAMP_TEST : hn::MODE_SIM;
+            const auto request = frame(hn::ADDR_LINK_NODE, hn::ADDR_BRIDGE, hn::MSG_MODE, i, {mode});
+            port.rx.insert(port.rx.end(), request.begin(), request.end());
+        }
+        node.update(1);
+
+        EXPECT_EQ(std::count(responseTypes.begin(), responseTypes.end(), hn::MSG_MODE_ACK), 20);
+        EXPECT_EQ(panel.mode, hn::MODE_LAMP_TEST);
+    });
 }
 
 // ── RS-485 bus simulation ──────────────────────────────────────────────────
@@ -892,6 +957,141 @@ void busTests() {
         EXPECT_TRUE(bridge.nodes().count(42) == 1);
         EXPECT_EQ(medium.violations, 0);
     });
+
+    addTest(s, "Address changes reject collisions and serialize per slave", []() {
+        UsbPort upstream, bus;
+        hn::FrameDecoder upstreamDecoder, busDecoder;
+        struct CapturedFrame {
+            hn::FrameHeader header;
+            std::vector<uint8_t> payload;
+        };
+        std::vector<CapturedFrame> upstreamFrames, busFrames;
+        const auto capture = [](hn::FrameDecoder& decoder, std::vector<CapturedFrame>& frames,
+                                const uint8_t* bytes, size_t len) {
+            for (size_t i = 0; i < len; i++) {
+                if (decoder.feed(bytes[i]) != hn::FrameDecoder::Result::Frame) continue;
+                CapturedFrame f;
+                f.header = decoder.header();
+                f.payload.assign(decoder.payload(), decoder.payload() + f.header.len);
+                frames.push_back(f);
+            }
+        };
+        upstream.out = [&](const uint8_t* d, size_t n) { capture(upstreamDecoder, upstreamFrames, d, n); };
+        bus.out = [&](const uint8_t* d, size_t n) { capture(busDecoder, busFrames, d, n); };
+        hn::BusMaster master(upstream, bus);
+        EXPECT_TRUE(master.addSlave(1));
+        EXPECT_TRUE(master.addSlave(2));
+
+        const auto requestAddress = [&](uint8_t dst, uint8_t seq, uint8_t address) {
+            const auto f = frame(dst, hn::ADDR_BRIDGE, hn::MSG_CONFIG, seq, {hn::CFG_BUS_ADDRESS, address});
+            upstream.rx.insert(upstream.rx.end(), f.begin(), f.end());
+        };
+        requestAddress(1, 1, 2);
+        master.update(1);
+        EXPECT_TRUE(master.slave(0).pendingAddress == 0);
+        EXPECT_TRUE(std::none_of(busFrames.begin(), busFrames.end(), [](const CapturedFrame& f) {
+            return f.header.type == hn::MSG_CONFIG;
+        }));
+        EXPECT_TRUE(std::any_of(upstreamFrames.begin(), upstreamFrames.end(), [](const CapturedFrame& f) {
+            return f.header.type == hn::MSG_NACK && f.payload.size() == 4 &&
+                   f.payload[0] == 1 && f.payload[1] == hn::NACK_BAD_VALUE;
+        }));
+
+        requestAddress(1, 2, 3);
+        requestAddress(1, 3, 4);
+        master.update(2);
+        EXPECT_EQ(master.slave(0).pendingAddress, 3);
+        EXPECT_EQ(master.slave(0).pendingAddressSeq, 2);
+        EXPECT_TRUE(std::any_of(upstreamFrames.begin(), upstreamFrames.end(), [](const CapturedFrame& f) {
+            return f.header.type == hn::MSG_NACK && f.payload.size() == 4 &&
+                   f.payload[0] == 3 && f.payload[1] == hn::NACK_BAD_VALUE;
+        }));
+
+        requestAddress(2, 4, 3);
+        master.update(3);
+        EXPECT_EQ(master.slave(1).pendingAddress, 0);
+        EXPECT_TRUE(std::any_of(upstreamFrames.begin(), upstreamFrames.end(), [](const CapturedFrame& f) {
+            return f.header.type == hn::MSG_NACK && f.payload.size() == 4 &&
+                   f.payload[0] == 4 && f.payload[1] == hn::NACK_BAD_VALUE;
+        }));
+
+        const auto pollReply = frame(hn::ADDR_LINK_NODE, 2, hn::MSG_POLL_EMPTY, 0, {});
+        bus.rx.insert(bus.rx.end(), pollReply.begin(), pollReply.end());
+        master.update(4);
+        EXPECT_TRUE(std::any_of(busFrames.begin(), busFrames.end(), [](const CapturedFrame& f) {
+            return f.header.type == hn::MSG_CONFIG && f.header.dst == 1;
+        }));
+
+        const auto ack = frame(hn::ADDR_LINK_NODE, 1, hn::MSG_ACK, 0, {2});
+        bus.rx.insert(bus.rx.end(), ack.begin(), ack.end());
+        master.update(5);
+        EXPECT_EQ(master.slave(0).address, 3);
+        EXPECT_EQ(master.slave(0).pendingAddress, 0);
+
+        const auto otherPollReply = frame(hn::ADDR_LINK_NODE, 2, hn::MSG_POLL_EMPTY, 0, {});
+        bus.rx.insert(bus.rx.end(), otherPollReply.begin(), otherPollReply.end());
+        master.update(6);
+        EXPECT_TRUE(std::any_of(busFrames.begin(), busFrames.end(), [](const CapturedFrame& f) {
+            return f.header.type == hn::MSG_POLL && f.header.dst == 3;
+        }));
+    });
+
+    addTest(s, "Bus reply queue handles the master's maximum downstream burst", []() {
+        BusRig rig;
+        rig.run(1500);
+        hn::FrameDecoder decoder;
+        const auto previousOutput = rig.masterUsb.out;
+        uint8_t modeAcks = 0;
+        rig.masterUsb.out = [&](const uint8_t* bytes, size_t len) {
+            for (size_t i = 0; i < len; i++)
+                if (decoder.feed(bytes[i]) == hn::FrameDecoder::Result::Frame &&
+                    decoder.header().type == hn::MSG_MODE_ACK)
+                    modeAcks++;
+            previousOutput(bytes, len);
+        };
+        for (uint8_t i = 0; i < hn::BusMaster::kQueueFrames; i++) {
+            const uint8_t mode = i & 1 ? hn::MODE_LAMP_TEST : hn::MODE_SIM;
+            const auto request = frame(1, hn::ADDR_BRIDGE, hn::MSG_MODE, i, {mode});
+            rig.masterUsb.rx.insert(rig.masterUsb.rx.end(), request.begin(), request.end());
+        }
+        rig.run(300);
+        EXPECT_EQ(modeAcks, hn::BusMaster::kQueueFrames);
+        EXPECT_EQ(rig.panels[0].mode, hn::MODE_LAMP_TEST);
+    });
+
+    addTest(s, "Discovery conflict probe identifies already-polled duplicate addresses", []() {
+        Medium medium;
+        SimPort masterBus, firstBus, secondBus;
+        masterBus.id = 0; masterBus.medium = &medium;
+        firstBus.id = 1; firstBus.medium = &medium;
+        secondBus.id = 2; secondBus.medium = &medium;
+        medium.ports = {&masterBus, &firstBus, &secondBus};
+        UsbPort upstream;
+        hn::BusMaster master(upstream, masterBus);
+        EXPECT_TRUE(master.addSlave(42));
+
+        TestPanel firstPanel, secondPanel;
+        firstPanel.boardId[0] = 1;
+        secondPanel.boardId[0] = 2;
+        hn::Node first(firstBus, firstPanel), second(secondBus, secondPanel);
+        first.beginBus(42);
+        second.beginBus(42);
+        first.seedRandom(0x1234);
+        second.seedRandom(0x5678);
+
+        for (uint32_t t = 1; t <= 500; t++) {
+            master.update(t);
+            first.update(t);
+            second.update(t);
+        }
+        master.enableDiscovery(true);
+        for (uint32_t t = 501; t <= 4000; t++) {
+            master.update(t);
+            first.update(t);
+            second.update(t);
+        }
+        EXPECT_TRUE(master.counters().conflicts >= 1);
+    });
 }
 
 } // namespace
@@ -901,6 +1101,7 @@ void registerHornetV2Tests() {
     recordTests();
     catalogTests();
     filterTests();
+    elementTests();
     nativeTests();
     usbTests();
     busTests();

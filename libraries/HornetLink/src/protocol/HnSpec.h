@@ -51,7 +51,7 @@ enum MsgType : uint8_t {
     MSG_HEARTBEAT = 0x60, ///< Keeps an idle USB link alive.
     MSG_POLL = 0x70, ///< The addressed slave may transmit exactly one frame now.
     MSG_POLL_EMPTY = 0x71, ///< Reply to POLL when the slave has nothing to send.
-    MSG_DISCOVER = 0x72, ///< Slaves that have not been polled recently answer HELLO in one random slot.
+    MSG_DISCOVER = 0x72, ///< All slaves answer HELLO in one random slot, including already-polled slaves, to reveal duplicate addresses.
     MSG_BUS_EVENT = 0x73, ///< A slave joined, dropped off or has an address conflict. event is one of BUS_*.
 };
 

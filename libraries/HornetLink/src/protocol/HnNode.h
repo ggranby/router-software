@@ -5,8 +5,8 @@
  * The engine is transport-neutral. The same object runs:
  *  - over USB, where it may send whenever it has something queued, and
  *  - as an RS-485 slave, where it only transmits one frame in reply to a POLL
- *    addressed to it (or a HELLO in a random DISCOVER slot). This is what keeps
- *    slaves from talking over each other on the half-duplex bus.
+ *    addressed to it (or a HELLO in a random DISCOVER slot). Random discovery
+ *    slots also let duplicate fixed addresses identify themselves.
  *
  * The sketch-facing layer (Hornet::Panel) implements NodeHandler. Everything
  * here is plain C++11 and is exercised by the host-side bus simulation tests.
@@ -120,7 +120,10 @@ public:
         now_ = nowMs;
         int c;
         while ((c = port_.read()) >= 0) {
-            if (decoder_.feed(static_cast<uint8_t>(c)) == FrameDecoder::Result::Frame) handleFrame();
+            if (decoder_.feed(static_cast<uint8_t>(c)) == FrameDecoder::Result::Frame) {
+                handleFrame();
+                if (transport_ == Transport::Usb && replyCount_) sendNext(false);
+            }
         }
         if (transport_ == Transport::Usb) {
             sendNext(false);
@@ -145,13 +148,11 @@ private:
         switch (h.type) {
         case MSG_POLL:
             if (transport_ == Transport::Bus && h.dst == address_) {
-                lastPolled_ = now_;
-                everPolled_ = true;
                 if (!sendNext(true)) sendSimple(MSG_POLL_EMPTY, nullptr, 0);
             }
             break;
         case MSG_DISCOVER:
-            if (transport_ == Transport::Bus && n >= 2 && recentlyUnpolled()) {
+            if (transport_ == Transport::Bus && n >= 2) {
                 const uint8_t slots = p[0] ? p[0] : 1;
                 discoverAt_ = now_ + (nextRandom() % slots) * p[1] + 1;
                 discoverPending_ = true;
@@ -172,6 +173,7 @@ private:
         case MSG_SYNC_REQUEST: requestSync(); break;
         case MSG_MODE:
             if (n >= 1) {
+                if (!canQueueReply()) { lastError_ = NACK_BAD_VALUE; break; }
                 reply_[0] = handler_.onMode(p[0]);
                 queueReply(MSG_MODE_ACK, 1);
             }
@@ -194,6 +196,7 @@ private:
 
     void handleConfig(const FrameHeader& h, const uint8_t* p, size_t n) {
         if (h.dst == ADDR_BROADCAST) return; // settings are always addressed
+        if (!canQueueReply()) { lastError_ = NACK_BAD_VALUE; return; }
         uint8_t reason = 0;
         uint8_t newAddress = 0;
         if (n >= 2 && p[0] == CFG_BUS_ADDRESS) {
@@ -216,8 +219,10 @@ private:
         queueReply(MSG_NACK, 4);
     }
 
+    bool canQueueReply() const { return replyCount_ < kReplyQueue; }
+
     void queueReply(uint8_t type, uint8_t len, uint8_t newAddress = 0) {
-        if (replyCount_ >= kReplyQueue) return;
+        if (!canQueueReply()) return;
         Reply& reply = replies_[(replyHead_ + replyCount_) % kReplyQueue];
         reply.type = type;
         reply.len = len;
@@ -232,8 +237,6 @@ private:
         inFlight_ = 0;
         retries_ = 0;
     }
-
-    bool recentlyUnpolled() const { return !everPolled_ || (now_ - lastPolled_) > 2000u; }
 
     uint32_t nextRandom() {
         rng_ = rng_ * 1103515245u + 12345u;
@@ -365,7 +368,7 @@ private:
     FrameDecoder decoder_;
     Transport transport_ = Transport::Usb;
     uint8_t address_ = ADDR_LINK_NODE;
-    static constexpr uint8_t kReplyQueue = 4;
+    static constexpr uint8_t kReplyQueue = 8;
     struct Reply {
         uint8_t type = 0;
         uint8_t len = 0;
@@ -389,8 +392,8 @@ private:
 
     uint8_t reply_[4] = {};
 
-    bool everPolled_ = false, discoverPending_ = false;
-    uint32_t lastPolled_ = 0, discoverAt_ = 0;
+    bool discoverPending_ = false;
+    uint32_t discoverAt_ = 0;
     uint32_t rng_ = 0x2545F491u;
 
     uint8_t scratch_[kMaxPayload];

@@ -193,6 +193,11 @@ private:
             }
             forwardUp(h, p);
             return;
+        case MSG_NACK:
+            if (s->pendingAddress && h.len >= 1 && p[0] == s->pendingAddressSeq)
+                s->pendingAddress = s->pendingAddressSeq = 0;
+            forwardUp(h, p);
+            return;
         case MSG_HELLO: {
             const uint32_t hash = h.len >= 17 ? crc16(p + 8, 8) | (static_cast<uint32_t>(crc16(p + 8, 8, 0x1D0F)) << 16) : 0;
             if (state_ == BusState::Discover && s->helloThisWindow && hash != s->boardHash) {
@@ -223,11 +228,26 @@ private:
         }
         if (h.dst >= ADDR_FIRST_SLAVE && h.dst <= ADDR_LAST_SLAVE) {
             if (h.type == MSG_ACK) return; // the master already acknowledged on the bus
-            if (h.type == MSG_CONFIG && h.len >= 2 && p[0] == CFG_BUS_ADDRESS &&
-                p[1] >= ADDR_FIRST_SLAVE && p[1] <= ADDR_LAST_SLAVE) {
+            if (h.type == MSG_CONFIG) {
                 if (SlaveStatus* s = find(h.dst)) {
-                    s->pendingAddress = p[1];
-                    s->pendingAddressSeq = h.seq;
+                    if (s->pendingAddress) {
+                        nackUpstream(h.seq, NACK_BAD_VALUE);
+                        return;
+                    }
+                    if (h.len >= 2 && p[0] == CFG_BUS_ADDRESS &&
+                        p[1] >= ADDR_FIRST_SLAVE && p[1] <= ADDR_LAST_SLAVE) {
+                        if (addressReserved(p[1], s)) {
+                            nackUpstream(h.seq, NACK_BAD_VALUE);
+                            return;
+                        }
+                        if (!queueDown(h.dst, h.type, h.seq, p, h.len, h.src)) {
+                            nackUpstream(h.seq, NACK_BAD_VALUE);
+                            return;
+                        }
+                        s->pendingAddress = p[1];
+                        s->pendingAddressSeq = h.seq;
+                        return;
+                    }
                 }
             }
             queueDown(h.dst, h.type, h.seq, p, h.len, h.src);
@@ -303,16 +323,17 @@ private:
         uint8_t bytes[kMaxWireFrame];
     };
 
-    void queueDown(uint8_t dst, uint8_t type, uint8_t seq, const uint8_t* p, size_t n,
+    bool queueDown(uint8_t dst, uint8_t type, uint8_t seq, const uint8_t* p, size_t n,
                    uint8_t src = ADDR_LINK_NODE) {
-        if (qCount_ >= kQueueFrames) { counters_.queueOverflows++; return; }
+        if (qCount_ >= kQueueFrames) { counters_.queueOverflows++; return false; }
         QueuedFrame& f = queue_[(qHead_ + qCount_) % kQueueFrames];
         FrameHeader h;
         h.dst = dst; h.src = src; h.type = type; h.seq = seq;
         const size_t w = encodeFrame(h, p, n, f.bytes, sizeof(f.bytes));
-        if (!w) return;
+        if (!w) return false;
         f.len = static_cast<uint8_t>(w);
         qCount_++;
+        return true;
     }
 
     void sendBus(uint8_t dst, uint8_t type, uint8_t seq, const uint8_t* p, size_t n) {
@@ -338,6 +359,19 @@ private:
         h.dst = ADDR_BRIDGE; h.src = ADDR_LINK_NODE; h.type = type; h.seq = seq_++;
         h.len = static_cast<uint8_t>(n);
         forwardUp(h, p);
+    }
+
+    void nackUpstream(uint8_t requestSeq, uint8_t reason) {
+        const uint8_t nack[4] = {requestSeq, reason, 0, 0};
+        sendUp(MSG_NACK, nack, sizeof(nack));
+    }
+
+    bool addressReserved(uint8_t address, const SlaveStatus* except) const {
+        for (uint8_t i = 0; i < slaveCount_; i++) {
+            const SlaveStatus& s = slaves_[i];
+            if (&s != except && (s.address == address || s.pendingAddress == address)) return true;
+        }
+        return false;
     }
 
     SlaveStatus* find(uint8_t address) {

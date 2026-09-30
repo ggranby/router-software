@@ -387,16 +387,17 @@ public:
     TextDisplay(const Control<K, N>& c, Handler fn) : Element(c.id, kRoleOut), fn_(fn), len_(N) {
         static_assert(K == Kind::Text, "Hornet::TextDisplay needs a text control.");
         static_assert(N <= 32, "text controls longer than 32 characters are not supported");
+        memset(value_, ' ', len_);
+        value_[len_] = '\0';
     }
 
     void onState(const hn::StateRecord& r) override {
         if (!fn_ || r.kind != hn::VALUE_TEXT) return;
-        char buf[33];
         const uint8_t n = r.textLen < len_ ? r.textLen : len_;
-        memcpy(buf, r.text, n);
-        for (uint8_t i = n; i < len_; i++) buf[i] = ' ';
-        buf[len_] = '\0';
-        if (!test_) fn_(buf, len_);
+        memcpy(value_, r.text, n);
+        for (uint8_t i = n; i < len_; i++) value_[i] = ' ';
+        value_[len_] = '\0';
+        if (!test_) fn_(value_, len_);
     }
     void onMode(uint8_t mode) override {
         const bool t = mode == hn::MODE_LAMP_TEST;
@@ -407,13 +408,15 @@ public:
             memset(buf, '8', len_);
             buf[len_] = '\0';
             fn_(buf, len_);
+        } else {
+            fn_(value_, len_);
         }
-        // Leaving lamp test: the bridge resends full state after every mode change.
     }
 
 private:
     Handler fn_;
     uint8_t len_;
+    char value_[33] = {};
     bool test_ = false;
 };
 
