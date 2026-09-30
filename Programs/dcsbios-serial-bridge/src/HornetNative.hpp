@@ -632,27 +632,32 @@ private:
 
     void handleInput(const hn::FrameHeader& h, const uint8_t* p) {
         node(h.src);
-        const bool fresh = dedup_.accept(h.src, h.seq);
         hn::InputReader rd(p, h.len);
         hn::InputRecord r;
         uint8_t nack = 0;
         uint16_t nackId = 0;
         while (rd.next(r)) {
-            if (sync && r.action == hn::ACTION_SET_POSITION) sync->setCockpit(r.id, r.arg);
-            if (sync && r.action == hn::ACTION_ANALOG) sync->setCockpit(r.id, r.arg);
             const uint8_t why = validateInput(r);
             if (why) { if (!nack) { nack = why; nackId = r.id; } continue; }
-            if (!fresh) continue; // retry of a frame we already forwarded
-            if (mode_ == hn::MODE_WIRING_TEST) { emitLog("WIRING " + addressName(h.src) + " " + describeInput(r)); continue; }
-            if (mode_ != hn::MODE_SIM) { if (!nack) { nack = hn::NACK_WRONG_MODE; nackId = r.id; } continue; }
-            if (onInput) onInput(h.src, r);
         }
         if (rd.error() && !nack) nack = hn::NACK_BAD_FRAME;
+        if (!nack && mode_ != hn::MODE_SIM && mode_ != hn::MODE_WIRING_TEST) nack = hn::NACK_WRONG_MODE;
         if (nack) {
             uint8_t b[4] = {h.seq, nack, 0, 0};
             hn::putU16(b + 2, nackId);
             send(h.src, hn::MSG_NACK, b, 4);
         } else {
+            const bool fresh = dedup_.accept(h.src, h.seq);
+            if (fresh) {
+                rd = hn::InputReader(p, h.len);
+                while (rd.next(r)) {
+                    if (sync && (r.action == hn::ACTION_SET_POSITION || r.action == hn::ACTION_ANALOG))
+                        sync->setCockpit(r.id, r.arg);
+                    if (mode_ == hn::MODE_WIRING_TEST)
+                        emitLog("WIRING " + addressName(h.src) + " " + describeInput(r));
+                    else if (onInput) onInput(h.src, r);
+                }
+            }
             send(h.src, hn::MSG_ACK, &h.seq, 1);
         }
     }

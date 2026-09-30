@@ -20,7 +20,7 @@
 #if defined(ESP32)
   #include <Esp.h>
 #endif
-#if defined(__AVR__)
+#if defined(__AVR__) || defined(ARDUINO_GIGA)
   #include <EEPROM.h>
 #endif
 
@@ -253,7 +253,7 @@ private:
 #if defined(ESP32)
         const uint64_t mac = ESP.getEfuseMac();
         for (uint8_t i = 0; i < 8; i++) boardId_[i] = static_cast<uint8_t>(mac >> (8 * i));
-#elif defined(__AVR__)
+#elif defined(__AVR__) || defined(ARDUINO_GIGA)
         const uint8_t magic = EEPROM.read(0);
         if (magic == 0xA5) {
             for (uint8_t i = 0; i < 8; i++) boardId_[i] = EEPROM.read(static_cast<int>(i + 1));

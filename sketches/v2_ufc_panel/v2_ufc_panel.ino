@@ -12,6 +12,8 @@ using namespace Hornet;
 
 // ── Keypad: 4 rows x 3 columns (1 2 3 / 4 5 6 / 7 8 9 / CLR 0 ENT) ────────
 #if defined(ESP32)
+// GPIO34-39 are input-only; the contacts assigned there require external
+// pull-up resistors.
 const uint8_t ROWS[] = {18, 19, 21, 22};
 const uint8_t COLS[] = {23, 25, 26};
 #else
@@ -37,17 +39,17 @@ Button keyEnt(UFC::KeyEnt, keypad.key(3, 2));
 #if defined(ESP32)
 Button os1(UFC::Os1, 0);
 Button os2(UFC::Os2, 2);
-Button os3(UFC::Os3, 3);
-Button os4(UFC::Os4, 4);
-Button os5(UFC::Os5, 5);
-Button ap(UFC::Ap, 12);
-Button iff(UFC::Iff, 13);
-Button tcn(UFC::Tcn, 14);
-Button ils(UFC::Ils, 15);
-Button dl(UFC::Dl, 1);
+Button os3(UFC::Os3, 4);
+Button os4(UFC::Os4, 5);
+Button os5(UFC::Os5, 12);
+Button ap(UFC::Ap, 13);
+Button iff(UFC::Iff, 14);
+Button tcn(UFC::Tcn, 15);
+Button ils(UFC::Ils, 32);
+Button dl(UFC::Dl, 33);
 Button bcn(UFC::Bcn, 27);
-Button onOff(UFC::Onoff, 32);
-Switch adf(UFC::Adf, 33, none, none);
+Button onOff(UFC::Onoff, 35);
+Switch adf(UFC::Adf, 33, none, 34);
 #else
 Button os1(UFC::Os1, 30);
 Button os2(UFC::Os2, 31);
@@ -68,15 +70,20 @@ Switch adf(UFC::Adf, 42, none, 43);                 // ADF1 / OFF / ADF2
 Pot comm1Vol(UFC::Comm1Vol, A0);
 Pot comm2Vol(UFC::Comm2Vol, A1);
 Pot brightness(UFC::Brt, A2);
-Encoder comm1Channel(UFC::Comm1Channel, 2, 3);
+Encoder comm1Channel(UFC::Comm1Channel, 16, 17);
 Encoder comm2Channel(UFC::Comm2Channel,
 #if defined(ESP32)
-                     16, 17);
+                     36, 39);
 #else
                      46, 47);
 #endif
+#if defined(ESP32)
+Button comm1Pull(UFC::Comm1Pull, 35);
+Button comm2Pull(UFC::Comm2Pull, 34);
+#else
 Button comm1Pull(UFC::Comm1Pull, 44);
 Button comm2Pull(UFC::Comm2Pull, 45);
+#endif
 
 // ── Displays ──────────────────────────────────────────────────────────────
 void showScratchpad(const char* text, uint8_t) { Serial1.print(F("SCRATCHPAD ")); Serial1.println(text); }
