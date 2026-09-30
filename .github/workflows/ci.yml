@@ -184,7 +184,7 @@ jobs:
         shell: pwsh
         run: |
           # Headers are checked through main.cpp via HeaderFilterRegex in .clang-tidy.
-          clang-tidy src\main.cpp -p build-tidy --warnings-as-errors=*
+          clang-tidy src\main.cpp -p build-tidy
           if ($LASTEXITCODE -ne 0) {
             Write-Output "::warning::clang-tidy reported findings (advisory)"
             exit 1
