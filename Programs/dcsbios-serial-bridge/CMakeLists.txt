@@ -16,6 +16,7 @@ add_executable(hornet-link WIN32
     src/DcsBiosSource.hpp
     src/DcsDirectSource.hpp
     src/HornetNativeSource.hpp
+    src/HornetNativeLink.hpp
     src/ReplayFileSource.hpp
     src/MsfsSource.hpp
     src/ProfileStore.hpp
