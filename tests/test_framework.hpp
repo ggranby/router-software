@@ -67,3 +67,4 @@ void addTest(TestSuite* suite, const std::string& name, std::function<void()> fn
 // Suites defined in other translation units.
 void registerCoreTests();
 void registerProfileStoreTests();
+void registerHornetV2Tests();

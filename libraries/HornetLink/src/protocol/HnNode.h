@@ -32,7 +32,7 @@ public:
     virtual void endTransmit() {}
 
 protected:
-    ~Port() {}
+    ~Port() = default;
 };
 
 /// What the node engine needs from the application.
@@ -60,7 +60,7 @@ public:
     virtual void fillDiag(Diag&) {}
 
 protected:
-    ~NodeHandler() {}
+    ~NodeHandler() = default;
 };
 
 enum class Transport : uint8_t { Usb, Bus };

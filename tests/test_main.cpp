@@ -456,6 +456,7 @@ int main() {
     registerDiscoveryLifecycleTests();
     registerCoreTests();
     registerProfileStoreTests();
+    registerHornetV2Tests();
     
     // Run all suites
     int totalPass = 0, totalFail = 0;
