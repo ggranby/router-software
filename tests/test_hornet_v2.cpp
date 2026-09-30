@@ -462,8 +462,19 @@ void filterTests() {
         EXPECT_TRUE(!f.update(9000, 65, out));                 // rate limited
         EXPECT_TRUE(f.update(9000, 85, out) && out == 9000);
         EXPECT_TRUE(!f.update(9100, 100, out));
-        EXPECT_TRUE(f.update(9100, 240, out) && out == 9100);  // settled: exact value
+        EXPECT_TRUE(!f.update(9100, 249, out));
+        EXPECT_TRUE(f.update(9100, 250, out) && out == 9100);  // settled: exact value
         EXPECT_TRUE(!f.update(9100, 500, out));
+    });
+
+    addTest(s, "Pot filter reports a resting value inside the deadband", []() {
+        Hornet::PotFilter f;
+        f.smoothing = 0;
+        uint16_t out = 0;
+        EXPECT_TRUE(f.update(1000, 0, out) && out == 1000);
+        EXPECT_TRUE(!f.update(1200, 30, out));
+        EXPECT_TRUE(!f.update(1200, 179, out));
+        EXPECT_TRUE(f.update(1200, 180, out) && out == 1200);
     });
 
     addTest(s, "Pot smoothing reduces noise", []() {
@@ -1132,7 +1143,7 @@ void busTests() {
         EXPECT_EQ(pages[1][0], 1);
     });
 
-    addTest(s, "Bus reply queue handles the master's maximum downstream burst", []() {
+    addTest(s, "Bus reply queue defers upstream frames beyond its capacity", []() {
         BusRig rig;
         rig.run(1500);
         hn::FrameDecoder decoder;
@@ -1145,14 +1156,15 @@ void busTests() {
                     modeAcks++;
             previousOutput(bytes, len);
         };
-        for (uint8_t i = 0; i < hn::BusMaster::kQueueFrames; i++) {
+        for (uint8_t i = 0; i < hn::BusMaster::kQueueFrames + 1; i++) {
             const uint8_t mode = i & 1 ? hn::MODE_LAMP_TEST : hn::MODE_SIM;
             const auto request = frame(1, hn::ADDR_BRIDGE, hn::MSG_MODE, i, {mode});
             rig.masterUsb.rx.insert(rig.masterUsb.rx.end(), request.begin(), request.end());
         }
         rig.run(300);
-        EXPECT_EQ(modeAcks, hn::BusMaster::kQueueFrames);
-        EXPECT_EQ(rig.panels[0].mode, hn::MODE_LAMP_TEST);
+        EXPECT_EQ(modeAcks, hn::BusMaster::kQueueFrames + 1);
+        EXPECT_EQ(rig.master.counters().queueOverflows, 0);
+        EXPECT_EQ(rig.panels[0].mode, hn::MODE_SIM);
     });
 
     addTest(s, "Discovery conflict probe identifies already-polled duplicate addresses", []() {

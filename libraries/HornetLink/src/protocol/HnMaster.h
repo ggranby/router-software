@@ -81,7 +81,7 @@ public:
     void update(uint32_t nowMs) {
         now_ = nowMs;
         int c;
-        while ((c = up_.read()) >= 0)
+        while (qCount_ < kQueueFrames && (c = up_.read()) >= 0)
             if (upDec_.feed(static_cast<uint8_t>(c)) == FrameDecoder::Result::Frame) handleUpstream();
         while ((c = bus_.read()) >= 0)
             if (busDec_.feed(static_cast<uint8_t>(c)) == FrameDecoder::Result::Frame) handleBus();

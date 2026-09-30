@@ -62,7 +62,7 @@ public:
         sent_ = raw16;
         primed_ = true;
         haveSent_ = true;
-        moving_ = false;
+        haveObserved_ = false;
     }
 
     bool primed() const { return primed_; }
@@ -75,16 +75,18 @@ public:
         else acc_ = acc_ - (acc_ >> smoothing) + (target >> smoothing);
         const uint16_t v = static_cast<uint16_t>(acc_ >> 8);
 
+        if (!haveObserved_ || v != lastObserved_) {
+            lastObserved_ = v;
+            lastObservedMs_ = nowMs;
+            haveObserved_ = true;
+        }
+
         const uint16_t diff = v > sent_ ? static_cast<uint16_t>(v - sent_) : static_cast<uint16_t>(sent_ - v);
         if (!haveSent_ || diff >= deadband) {
             if (haveSent_ && (nowMs - lastSent_) < minIntervalMs) return false; // retried next call
-            moving_ = true;
             return report(v, nowMs, out);
         }
-        if (moving_ && (nowMs - lastSent_) >= settleMs) {
-            moving_ = false;
-            if (diff != 0) return report(v, nowMs, out);
-        }
+        if ((nowMs - lastObservedMs_) >= settleMs && diff != 0) return report(v, nowMs, out);
         return false;
     }
 
@@ -102,9 +104,11 @@ private:
     uint32_t acc_ = 0;
     bool primed_ = false;
     bool haveSent_ = false;
-    bool moving_ = false;
+    bool haveObserved_ = false;
     uint16_t sent_ = 0;
     uint32_t lastSent_ = 0;
+    uint16_t lastObserved_ = 0;
+    uint32_t lastObservedMs_ = 0;
 };
 
 /**
