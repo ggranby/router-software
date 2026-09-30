@@ -118,8 +118,8 @@ protected:
  * Give one contact per position, in the order of the control reference, using
  * Hornet::none for the position without a contact:
  * @code
- *   Switch apu(Apu::ApuControlSw, none, 7);             // OFF has no contact, ON = pin 7
- *   Switch hook(Misc::X, 4, none, 5);                   // ON-OFF-ON
+ *   Switch apu(Apu::ApuControl, none, 7);               // OFF has no contact, ON = pin 7
+ *   Switch crank(Apu::EngineCrank, 4, none, 5);         // LEFT-OFF-RIGHT
  *   Switch masterArm(MasterArm::MasterArm, 4);          // 2-position shortcut: pin = 2nd position
  * @endcode
  */

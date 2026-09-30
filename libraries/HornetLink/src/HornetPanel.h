@@ -116,15 +116,15 @@ public:
     /**
      * @brief Plain-text mode for the Arduino Serial Monitor (no bridge needed).
      * Prints "MASTER_ARM.MASTER_ARM=ARM" when you move a control. Type
-     * "UFC.KEY_1_LT=1" to drive an output, "SYNC" to list every input,
-     * "MODE LAMP_TEST" / "MODE SIM" / "MODE WIRING_TEST" to change mode.
+     * "MASTER_ARM.READY_LT=1" to drive an output, "SYNC" to list every input,
+     * "MODE LAMP_TEST" / "MODE SIM" / "MODE MAINTENANCE" / "MODE WIRING_TEST" to change mode.
      */
     template <class S>
     void beginDebug(S& serial, uint32_t baud = 115200) {
         serial.begin(baud);
         debug_ = &serial;
         start();
-        debug_->println(F("Hornet Link debug mode. Commands: NAME=VALUE, SYNC, MODE <SIM|LAMP_TEST|WIRING_TEST>"));
+        debug_->println(F("Hornet Link debug mode. Commands: NAME=VALUE, SYNC, MODE <SIM|LAMP_TEST|MAINTENANCE|WIRING_TEST>"));
     }
 
     /// Call every loop(). Keep loop() free of long delay() calls.
@@ -348,7 +348,7 @@ private:
             const int named = positionIndex(row, val);
             r.kind = hn::VALUE_POSITION;
             r.value = named >= 0 ? static_cast<uint16_t>(named) : static_cast<uint16_t>(strtoul(val, nullptr, 10));
-            if (row.kind == static_cast<uint8_t>(Kind::Gauge)) r.kind = hn::VALUE_ANALOG;
+            if (row.kind == static_cast<uint8_t>(Kind::Gauge) || row.kind == static_cast<uint8_t>(Kind::Axis)) r.kind = hn::VALUE_ANALOG;
         }
         onState(r);
         debug_->println(F("ok"));

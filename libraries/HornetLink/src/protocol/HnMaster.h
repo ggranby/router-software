@@ -179,7 +179,7 @@ private:
             return;
         }
         case MSG_HELLO: {
-            const uint32_t hash = h.len >= 16 ? crc16(p + 8, 8) | (static_cast<uint32_t>(crc16(p + 8, 8, 0x1D0F)) << 16) : 0;
+            const uint32_t hash = h.len >= 17 ? crc16(p + 8, 8) | (static_cast<uint32_t>(crc16(p + 8, 8, 0x1D0F)) << 16) : 0;
             if (state_ == BusState::Discover && s->helloThisWindow && hash != s->boardHash) {
                 counters_.conflicts++;
                 busEvent(BUS_CONFLICT, s->address);
@@ -238,7 +238,7 @@ private:
             d.crcErrors = static_cast<uint16_t>(busDec_.counters.crcErrors + upDec_.counters.crcErrors);
             d.framingErrors = static_cast<uint16_t>(busDec_.counters.framingErrors + upDec_.counters.framingErrors);
             d.overflows = static_cast<uint16_t>(busDec_.counters.overflows + upDec_.counters.overflows + counters_.queueOverflows);
-            d.droppedInputs = counters_.duplicateInputs;
+            d.droppedInputs = 0; // the master never drops inputs; duplicates are retries it already forwarded
             uint8_t online = 0;
             for (uint8_t i = 0; i < slaveCount_; i++) online = static_cast<uint8_t>(online + (slaves_[i].online ? 1 : 0));
             snprintfSlaves(d.text, sizeof(d.text), online);
