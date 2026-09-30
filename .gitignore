@@ -1,5 +1,6 @@
 # Build artifacts
 build/
+build-tests/
 tests/build/
 Programs/dcsbios-serial-bridge/build/
 *.o

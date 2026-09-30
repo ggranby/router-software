@@ -272,14 +272,14 @@ jobs:
 
       - name: Compile v2 sketches (ESP32)
         run: |
-          for s in v2_master_arm_panel v2_ufc_panel v2_bus_master; do
+          for s in v2_first_panel v2_master_arm_panel v2_ufc_panel v2_bus_master; do
             arduino-cli compile --libraries "$GITHUB_WORKSPACE/libraries" \
               --fqbn esp32:esp32:esp32 "sketches/$s"
           done
 
       - name: Compile v2 sketches (Arduino Giga R1)
         run: |
-          for s in v2_master_arm_panel v2_ufc_panel v2_bus_master; do
+          for s in v2_first_panel v2_master_arm_panel v2_ufc_panel v2_bus_master; do
             arduino-cli compile --libraries "$GITHUB_WORKSPACE/libraries" \
               --fqbn arduino:mbed_giga:giga "sketches/$s"
           done

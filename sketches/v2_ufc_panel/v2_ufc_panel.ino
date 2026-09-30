@@ -46,7 +46,7 @@ Button ap(UFC::Ap, 13);
 Button iff(UFC::Iff, 14);
 Button tcn(UFC::Tcn, 15);
 Button ils(UFC::Ils, 32);
-Button dl(UFC::Dl, 33);
+Button dl(UFC::Dl, 17);
 Button bcn(UFC::Bcn, 27);
 Button onOff(UFC::Onoff, 35);
 Switch adf(UFC::Adf, 33, none, 34);

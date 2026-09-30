@@ -54,7 +54,13 @@ autocomplete also works: type `UFC::` and pick from the list.
 
 If the name is wrong or nothing prints, check the troubleshooting table below.
 
-## Step 4: connect to the PC software
+## Step 4: connect to the PC software (stage 2)
+
+PC integration through `beginUsb()` is not available yet. Keep using
+`panel.beginDebug(Serial);` and the Serial Monitor while the v2 bridge path is
+completed in stage 2. Do not start `hornet-link.exe` for this example yet.
+
+When stage 2 is available:
 
 1. Change `panel.beginDebug(Serial);` to `panel.beginUsb(Serial);` and upload.
 2. Start `hornet-link.exe` and select the board's COM port.

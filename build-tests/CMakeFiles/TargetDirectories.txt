@@ -1,4 +1,0 @@
-/home/runner/work/router-software/router-software/build-tests/CMakeFiles/hornet-link-tests.dir
-/home/runner/work/router-software/router-software/build-tests/CMakeFiles/test.dir
-/home/runner/work/router-software/router-software/build-tests/CMakeFiles/edit_cache.dir
-/home/runner/work/router-software/router-software/build-tests/CMakeFiles/rebuild_cache.dir
