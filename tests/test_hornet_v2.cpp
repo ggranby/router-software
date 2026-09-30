@@ -4,6 +4,7 @@
 
 #include "HornetFilters.h"
 #include "HornetElements.h"
+#include "HornetNativeLink.hpp"
 #include "HornetNative.hpp"
 #include "protocol/HnMaster.h"
 #include "test_framework.hpp"
@@ -607,6 +608,29 @@ void nativeTests() {
         EXPECT_STR_EQ(formatExporterInput(input(kKey1, hn::ACTION_PRESS, 1)), std::string("0202 PRESS"));
         EXPECT_STR_EQ(describeInput(input(kMasterArm, hn::ACTION_SET_POSITION, 1)), std::string("MASTER_ARM.MASTER_ARM=ARM"));
         EXPECT_STR_EQ(describeInput(input(kKey1, hn::ACTION_PRESS, 1)), std::string("UFC.KEY_1 PRESS"));
+    });
+
+    addTest(s, "Native runtime dispatches parsed state changes", []() {
+        NativeBridgeRuntime runtime;
+        DatagramHeader received;
+        std::vector<uint16_t> dirty;
+        int callbacks = 0;
+        runtime.onState = [&](const DatagramHeader& header, const std::vector<uint16_t>& ids) {
+            received = header;
+            dirty = ids;
+            ++callbacks;
+        };
+
+        const std::string dg = "HLN 2 0x1 FA-18C_hornet 1 1\n0101=1\n";
+        EXPECT_TRUE(runtime.ingestDatagram(dg) == ParseResult::Ok);
+        EXPECT_EQ(callbacks, 1);
+        EXPECT_STR_EQ(received.aircraft, std::string("FA-18C_hornet"));
+        EXPECT_EQ(dirty.size(), static_cast<size_t>(1));
+        EXPECT_EQ(dirty.front(), static_cast<uint16_t>(kMasterArm));
+        EXPECT_EQ(runtime.state.get(kMasterArm)->number, 1);
+
+        EXPECT_TRUE(runtime.ingestDatagram("DCS-BIOS") == ParseResult::NotHornetLink);
+        EXPECT_EQ(callbacks, 1);
     });
 
     addTest(s, "Sync tracker lists cockpit/DCS differences (DCS wins)", []() {
