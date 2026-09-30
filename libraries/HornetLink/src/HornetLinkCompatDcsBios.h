@@ -2,6 +2,10 @@
  * @file HornetLinkCompatDcsBios.h
  * @brief DCS-BIOS library compatibility shim for HornetLink.
  *
+ * @deprecated Transitional only. New panels should use the Hornet-native
+ * library (`#include <Hornet.h>`, docs/FIRST_PANEL.md), which does not need
+ * DCS-BIOS. This shim will be removed once protocol v1 is retired.
+ *
  * If your panel firmware already uses the DCS-BIOS Arduino
  * library (https://github.com/dcs-bios/dcs-bios-arduino-library),
  * this shim lets you migrate incrementally:

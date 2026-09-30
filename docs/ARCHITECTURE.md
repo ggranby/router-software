@@ -105,6 +105,21 @@ capable architecture:
 | `HornetLinkSlave.h` | RS-485 bus slave logic |
 | `HornetLinkCompatDcsBios.h` | DCS-BIOS library compatibility shim |
 
+### Protocol v2 / Hornet-native (stage 1)
+
+| File | Purpose |
+|------|---------|
+| `catalog/fa18c.json` | F/A-18C control catalogue: the single source of truth for IDs, names, types, positions and DCS data |
+| `catalog/protocol_v2.json` | Machine-readable protocol v2 spec (messages, codes, timing) |
+| `Programs/tools/generate_hornet_catalog.py` | Generates the files below from `catalog/` (`--check` in CI) |
+| `libraries/HornetLink/src/generated/HornetF18C.h` | Named, typed controls (`Hornet::UFC::Key1`) + flash lookup table (generated) |
+| `libraries/HornetLink/src/protocol/` | Portable v2 core: `HnSpec.h` (generated), `HnFrame.h`, `HnRecords.h`, `HnNode.h`, `HnMaster.h` |
+| `libraries/HornetLink/src/Hornet.h` | Arduino v2 API (elements, IO sources, filters, `Panel`, `BusMaster`) |
+| `src/HornetNative.hpp` | Bridge side: exporter datagram parser, input validation, sync tracker, frame decoder, `LinkSession` (not yet used by `main.cpp`) |
+| `lua/HornetLinkNative.lua` | Native exporter (generated), UDP 42003 out / 42004 in |
+
+See [PROTOCOL_V2.md](PROTOCOL_V2.md) for the data flow.
+
 ### Lua (`lua/`)
 
 | File | Purpose |

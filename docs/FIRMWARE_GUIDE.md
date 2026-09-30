@@ -3,6 +3,17 @@
 This guide covers writing and flashing firmware for Open-Hornet panel boards
 that connect to the Hornet Link PC bridge.
 
+> **Two APIs.** This guide describes the protocol v1 API (`HornetLink.h`),
+> which carries DCS-BIOS addresses. New panels should use the Hornet-native
+> v2 API (`Hornet.h`). With it you name cockpit controls instead of addresses
+> (`Switch masterArm(MasterArm::MasterArm, 4);`), it doesn't need DCS-BIOS,
+> and the same sketch runs over USB, RS-485 or a plain-text debug mode. Start
+> with [FIRST_PANEL.md](FIRST_PANEL.md). The protocol is in
+> [PROTOCOL_V2.md](PROTOCOL_V2.md) and every control is listed in
+> [F18C_CONTROL_REFERENCE.md](F18C_CONTROL_REFERENCE.md). Examples are in
+> `sketches/v2_*`. Supported boards: Pro Micro/Leonardo (panels), Mega 2560,
+> ESP32 and Arduino Giga R1 (panels and bus master).
+
 ---
 
 ## Supported Boards
