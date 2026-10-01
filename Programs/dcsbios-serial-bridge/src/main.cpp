@@ -43,6 +43,7 @@
 #include "SimSource.hpp"
 #include "DcsBiosSource.hpp"
 #include "DcsDirectSource.hpp"
+#include "HornetNativeSource.hpp"
 #include "ReplayFileSource.hpp"
 #include "MsfsSource.hpp"
 #include "ProfileStore.hpp"
