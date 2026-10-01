@@ -13,8 +13,7 @@ catalogue, values are typed, and the RS-485 bus is collision-free.
 | [DCS_DATA_PROVENANCE.md](DCS_DATA_PROVENANCE.md) | Where the DCS device/argument/command numbers came from |
 | [FIRST_PANEL.md](FIRST_PANEL.md) | Beginner guide and troubleshooting table |
 
-The legacy DCS-BIOS-based protocol (v1) is still in
-[RS485_PROTOCOL.md](../RS485_PROTOCOL.md) and
+The legacy DCS-BIOS-based protocol (v1) is documented in
 [PROTOCOL_REFERENCE.md](PROTOCOL_REFERENCE.md). Both versions are supported
 side by side until v2 has been checked on real panels.
 
