@@ -23,6 +23,10 @@ add_executable(hornet-link WIN32
     src/RS485ProtocolSpec.hpp
 )
 
+target_include_directories(hornet-link PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../../libraries/HornetLink/src
+)
+
 set_target_properties(hornet-link PROPERTIES
     OUTPUT_NAME "hornet-link"
 )

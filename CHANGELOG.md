@@ -35,13 +35,19 @@ in `libraries/HornetLink/library.properties`.
   targets, a CI generator check, and v2 sketch builds for Leonardo, Mega,
   ESP32 and Arduino Giga.
 
+### Added
+- Singular master reference document (`REFERENCE.md`) containing a complete file-by-file directory breakdown, cleanup register, and full Arduino library function catalog.
+- Agent operational reference (`AGENTS.md`) documenting architectural constraints, C++11 AVR portability rules, and CI check commands.
+
 ### Changed
-- DCS device, argument and command data in the catalogue is temporarily taken
-  from DCS-BIOS. Every occurrence is listed in `docs/DCS_DATA_PROVENANCE.md`
-  and is to be replaced with data from a DCS install.
-- `HornetLinkCompatDcsBios.h` is deprecated.
+- Condensed and consolidated `RS485_PROTOCOL.md` into `docs/PROTOCOL_REFERENCE.md` (Section 5), creating a single authoritative protocol reference.
+- Enhanced `CONTRIBUTING.md` with comprehensive local setup instructions, cross-platform build commands, and coding standards.
+- Updated `README.md` and `docs/DEVELOPER_GUIDE.md` references.
 
 ### Removed
+- Removed redundant root and docs stubs: `DEVELOPMENT.md`, `docs/INCOMPLETE_ITEMS.md`, and `docs/RESUME_GUIDE.md`.
+- Removed root `RS485_PROTOCOL.md` (consolidated into `docs/PROTOCOL_REFERENCE.md`).
+- Removed obsolete socat batch scripts in `Programs/`: `connect-serial-port.cmd`, `ensure-socat.cmd`, `multicast-console.cmd`, and `multiple-com-ports.cmd`.
 - The hand-written `lua/modules/FA-18C.lua` address map. It was inconsistent
   with DCS-BIOS and unused; `catalog/fa18c.json` replaces it.
 

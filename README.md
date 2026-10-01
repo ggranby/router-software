@@ -138,21 +138,16 @@ The bridge uses a multi-threaded architecture:
 
 Communication is thread-safe via atomic counters and message queues.
 
-## Developer Documentation
+## Developer & Contributor Documentation
 
-See [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) for the current
-development status, build and test instructions, known constraints, and
-prioritized future-work backlog.
-
-See the [F/A-18C export inventory](docs/F18C_EXPORT_INVENTORY.md) for a
-versioned, equipment-grouped catalog of Hornet controls and outputs, including
-the verification path for future native DCS export evidence.
-
-**Hornet-native protocol v2 (in progress):** an F/A-18C-only replacement for
-DCS-BIOS. It has named controls, a collision-free RS-485 bus and a beginner-friendly
-Arduino API. Start with [docs/FIRST_PANEL.md](docs/FIRST_PANEL.md); the protocol
-is in [docs/PROTOCOL_V2.md](docs/PROTOCOL_V2.md). The bridge UI integration is
-still pending (see the developer guide).
+- **Master Reference & Inventory:** [REFERENCE.md](REFERENCE.md) contains an exhaustive file-by-file directory breakdown, repository condensation history, and a complete catalog of all Arduino library functions.
+- **Human Contributors:** See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution workflow, local build commands, and coding standards.
+- **AI Agents:** See [AGENTS.md](AGENTS.md) for agent operational constraints, AVR portability rules, and CI check requirements.
+- **Engineering Roadmap:** See [docs/DEVELOPER_GUIDE.md](docs/DEVELOPER_GUIDE.md) for current implementation status and prioritized backlog.
+- **Protocol Reference (v1):** See [docs/PROTOCOL_REFERENCE.md](docs/PROTOCOL_REFERENCE.md) for the consolidated DCS-BIOS export format and full RS-485 sub-bus protocol.
+- **Protocol Reference (v2):** See [docs/PROTOCOL_V2.md](docs/PROTOCOL_V2.md) and [docs/PROTOCOL_V2_MESSAGES.md](docs/PROTOCOL_V2_MESSAGES.md) for the Hornet-native COBS protocol.
+- **Beginner Panel Tutorial:** See [docs/FIRST_PANEL.md](docs/FIRST_PANEL.md) to build your first cockpit panel with `Hornet.h`.
+- **F/A-18C Control Reference:** See [docs/F18C_CONTROL_REFERENCE.md](docs/F18C_CONTROL_REFERENCE.md) for all named controls and positions.
 
 ## Dependencies
 

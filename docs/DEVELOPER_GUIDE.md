@@ -302,4 +302,4 @@ and each added adapter has a testable contract and appropriate hardware checks.
 - [API_REFERENCE.md](API_REFERENCE.md) — public C++ types and interfaces.
 - [FIRMWARE_GUIDE.md](FIRMWARE_GUIDE.md) — Arduino library and sketches.
 - [RELEASE_PROCESS.md](RELEASE_PROCESS.md) — packaging and publishing.
-- [RESUME_GUIDE.md](RESUME_GUIDE.md) — short handoff entry point.
+- [REFERENCE.md](../REFERENCE.md) — master repository reference, file directory breakdown, and Arduino function catalog.
