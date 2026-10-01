@@ -123,6 +123,7 @@ jobs:
           -DUNICODE -D_UNICODE -DWIN32_LEAN_AND_MEAN -DNOMINMAX
           -I../../libraries/HornetLink/src
           -Wall -Wextra -Werror -Wno-unknown-pragmas
+          -I../../libraries/HornetLink/src
           src/main.cpp -o hornet-link.exe -static
           -lws2_32 -lshlwapi -lcomdlg32
 
