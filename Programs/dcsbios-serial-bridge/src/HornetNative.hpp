@@ -533,6 +533,19 @@ public:
     }
     bool v2Confirmed() const { return v2_; }
 
+    /// Clear per-connection state while retaining transport callbacks.
+    void reset() {
+        dec_.reset();
+        dec_.counters = {};
+        std::fill(lastInputSeq_, lastInputSeq_ + 256, 0);
+        std::fill(lastInputMs_, lastInputMs_ + 256, 0);
+        nodes_.clear();
+        seq_ = 0;
+        mode_ = hn::MODE_SIM;
+        v2_ = false;
+        fullStateDue_ = false;
+    }
+
     void feed(const uint8_t* data, size_t n) {
         for (size_t i = 0; i < n; i++)
             if (dec_.feed(data[i]) == hn::FrameDecoder::Result::Frame) handle();

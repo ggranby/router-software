@@ -53,6 +53,7 @@ public:
     void reset() {
         started_ = false;
         fallbackIssued_ = false;
+        session.reset();
     }
 
 private:

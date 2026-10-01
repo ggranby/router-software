@@ -10,10 +10,12 @@
 #include "test_framework.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cstring>
 #include <deque>
 #include <random>
 #include <string>
+#include <thread>
 #include <vector>
 
 using namespace hornet_native;
@@ -610,27 +612,100 @@ void nativeTests() {
         EXPECT_STR_EQ(describeInput(input(kKey1, hn::ACTION_PRESS, 1)), std::string("UFC.KEY_1 PRESS"));
     });
 
-    addTest(s, "Native runtime dispatches parsed state changes", []() {
+    addTest(s, "Native runtime dispatches subscribed state including full refresh", []() {
         NativeBridgeRuntime runtime;
         DatagramHeader received;
         std::vector<uint16_t> dirty;
+        std::vector<std::vector<uint8_t>> writes;
         int callbacks = 0;
+        runtime.link.session.write = [&](const uint8_t* data, size_t size) {
+            writes.emplace_back(data, data + size);
+        };
         runtime.onState = [&](const DatagramHeader& header, const std::vector<uint16_t>& ids) {
             received = header;
             dirty = ids;
             ++callbacks;
         };
 
-        const std::string dg = "HLN 2 0x1 FA-18C_hornet 1 1\n0101=1\n";
-        EXPECT_TRUE(runtime.ingestDatagram(dg) == ParseResult::Ok);
+        EXPECT_TRUE(runtime.ingestDatagram(
+            "HLN 2 0x1 FA-18C_hornet 1 1\n0101=1\n0104=1\n") == ParseResult::Ok);
         EXPECT_EQ(callbacks, 1);
         EXPECT_STR_EQ(received.aircraft, std::string("FA-18C_hornet"));
-        EXPECT_EQ(dirty.size(), static_cast<size_t>(1));
+        EXPECT_EQ(dirty.size(), static_cast<size_t>(2));
         EXPECT_EQ(dirty.front(), static_cast<uint16_t>(kMasterArm));
         EXPECT_EQ(runtime.state.get(kMasterArm)->number, 1);
 
+        hn::Hello hello;
+        std::strcpy(hello.name, "TEST");
+        uint8_t helloPayload[hn::kMaxPayload];
+        const size_t helloSize = hn::writeHello(helloPayload, sizeof(helloPayload), hello);
+        const auto helloFrame = frame(hn::ADDR_BRIDGE, 2, hn::MSG_HELLO, 1,
+                                      std::vector<uint8_t>(helloPayload, helloPayload + helloSize));
+        runtime.feedSerial(helloFrame.data(), helloFrame.size());
+        const std::vector<uint8_t> subscribePayload = {
+            hn::SUBSCRIBE_CONTROLS,
+            static_cast<uint8_t>(kMasterArm & 0xff),
+            static_cast<uint8_t>(kMasterArm >> 8)
+        };
+        const auto subscribe = frame(hn::ADDR_BRIDGE, 2, hn::MSG_SUBSCRIBE, 2, subscribePayload);
+        runtime.feedSerial(subscribe.data(), subscribe.size());
+
+        writes.clear();
+        EXPECT_TRUE(runtime.ingestDatagram(
+            "HLN 2 0x1 FA-18C_hornet 1 1\n0104=0\n") == ParseResult::Ok);
+        EXPECT_EQ(writes.size(), static_cast<size_t>(1));
+        hn::FrameDecoder stateDecoder;
+        EXPECT_EQ(feedAll(stateDecoder, writes.front()), 1);
+        EXPECT_EQ(stateDecoder.header().type, hn::MSG_STATE);
+        hn::StateReader stateReader(stateDecoder.payload(), stateDecoder.header().len);
+        hn::StateRecord stateRecord;
+        EXPECT_TRUE(stateReader.next(stateRecord));
+        EXPECT_EQ(stateRecord.id, kMasterArm);
+        EXPECT_EQ(stateRecord.value, 1);
+        EXPECT_TRUE(!stateReader.next(stateRecord));
+
+        writes.clear();
+        EXPECT_TRUE(runtime.ingestDatagram(
+            "HLN 2 0x1 FA-18C_hornet 1 1\n0101=0\n") == ParseResult::Ok);
+        EXPECT_EQ(writes.size(), static_cast<size_t>(1));
+        hn::FrameDecoder deltaDecoder;
+        EXPECT_EQ(feedAll(deltaDecoder, writes.front()), 1);
+        hn::StateReader deltaReader(deltaDecoder.payload(), deltaDecoder.header().len);
+        EXPECT_TRUE(deltaReader.next(stateRecord));
+        EXPECT_EQ(stateRecord.id, kMasterArm);
+        EXPECT_EQ(stateRecord.value, 0);
+
         EXPECT_TRUE(runtime.ingestDatagram("DCS-BIOS") == ParseResult::NotHornetLink);
-        EXPECT_EQ(callbacks, 1);
+        EXPECT_EQ(callbacks, 3);
+    });
+
+    addTest(s, "Native link reset permits v1 fallback after a v2 reconnect", []() {
+        NativeLinkNegotiator link;
+        int fallbacks = 0;
+        int writes = 0;
+        link.session.write = [&](const uint8_t*, size_t) { ++writes; };
+        link.fallbackToV1 = [&]() { ++fallbacks; };
+
+        link.start();
+        EXPECT_EQ(writes, 1);
+        hn::Hello hello;
+        std::strcpy(hello.name, "TEST");
+        uint8_t payload[hn::kMaxPayload];
+        const size_t payloadSize = hn::writeHello(payload, sizeof(payload), hello);
+        const auto helloFrame = frame(hn::ADDR_BRIDGE, 2, hn::MSG_HELLO, 1,
+                                      std::vector<uint8_t>(payload, payload + payloadSize));
+        link.feed(helloFrame.data(), helloFrame.size());
+        EXPECT_TRUE(link.v2Confirmed());
+        EXPECT_EQ(link.session.nodes().size(), static_cast<size_t>(1));
+
+        link.reset();
+        link.start();
+        EXPECT_EQ(writes, 2);
+        EXPECT_TRUE(!link.v2Confirmed());
+        EXPECT_TRUE(link.session.nodes().empty());
+        std::this_thread::sleep_for(std::chrono::milliseconds(210));
+        EXPECT_TRUE(link.poll());
+        EXPECT_EQ(fallbacks, 1);
     });
 
     addTest(s, "Sync tracker lists cockpit/DCS differences (DCS wins)", []() {

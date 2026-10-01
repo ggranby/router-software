@@ -40,6 +40,10 @@ public:
 
     bool connect() {
         if (running_) return false;
+        if (worker_.joinable() || listenSocket_ != INVALID_SOCKET ||
+            inputSocket_ != INVALID_SOCKET || winsockInitialised_) {
+            disconnect();
+        }
 
         WSADATA wd = {};
         if (WSAStartup(MAKEWORD(2, 2), &wd) != 0) {
