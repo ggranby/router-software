@@ -36,6 +36,33 @@ in `libraries/HornetLink/library.properties`.
   ESP32 and Arduino Giga.
 
 ### Added
+- Full 505-control DCS-BIOS baseline crosswalk and per-control native-evidence
+  checklist generator, preserving installed-reference version differences,
+  distinguishing external from cockpit arguments, and reporting conservative
+  native static matches without marking controls verified. Follow-up parsing
+  handles multi-command readbacks and classifies acquisition gaps and manual
+  test conditions without generating input commands.
+- Broad read-only native DCS recorder (`HornetLinkCapture.lua`) for cockpit
+  argument slots, raw indication text, and 38 own-aircraft telemetry APIs, with
+  exact-repeat suppression, error reporting, and numbered chunked transport.
+  Follow-up streams add 17 explicit external-aircraft argument candidates and
+  raw COMM1/COMM2 radio frequencies, kept separate in readable reports and the
+  full inventory crosswalk.
+  The crosswalk also decodes captured COMM channel glyphs against the installed
+  reference's literal map, reports unresolved display states without fabricated
+  channel values, and resolves native combined selector/pull helper components
+  separately while retaining unverified input/identity flags.
+  An optional pinned-release module fills identifiers missing from the installed
+  module without overriding it, restoring the launch-bar argument 85 candidate
+  and HUD NWS field linkage with source hashes and native HUD declarations.
+- Native capture decoder (`Programs/tools/decode_native_capture.py`) producing
+  a compact summary, human-readable change timeline, raw JSONL, and automated
+  catalogue evidence coverage without claiming input-command verification.
+  A live cold-start sweep is documented with remaining state and text-size gaps.
+- Read-only native DCS Master Arm argument capture (`HornetLinkVerify.lua`),
+  regression tests, and a staged verification procedure against DCS 2.9.30.28738.
+  Live capture correlates Master Arm, A/A and A/G button outputs and their mode
+  lamps; other panel outputs and native command actuation remain unverified.
 - Singular master reference document (`REFERENCE.md`) containing a complete file-by-file directory breakdown, cleanup register, and full Arduino library function catalog.
 - Agent operational reference (`AGENTS.md`) documenting architectural constraints, C++11 AVR portability rules, and CI check commands.
 
