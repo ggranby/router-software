@@ -139,6 +139,11 @@ jobs:
         # Fails if catalog/*.json was edited without re-running the generator.
         run: python3 Programs/tools/generate_hornet_catalog.py --check
 
+      - name: Test native capture decoder
+        run: |
+          python3 -m unittest discover -s tests -p 'test_native_capture.py'
+          python3 -m unittest discover -s tests -p 'test_native_crosswalk.py'
+
   # ── Lua lint ───────────────────────────────────────────────────────────────
   lua-lint:
     name: Lint Lua exporter (luacheck)
@@ -149,11 +154,16 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install luacheck
-        run: sudo apt-get update && sudo apt-get install -y lua-check
+        run: sudo apt-get update && sudo apt-get install -y lua-check lua5.1
 
       - name: Run luacheck
         working-directory: Programs/dcsbios-serial-bridge/lua
         run: luacheck .
+
+      - name: Test read-only native DCS capture
+        run: |
+          lua5.1 tests/test_native_verification.lua
+          lua5.1 tests/test_native_capture.lua
 
   # ── Windows MSVC build ─────────────────────────────────────────────────────
   build-windows:

@@ -154,6 +154,16 @@ Every file in the repository is cataloged below with its contents, purpose, and 
 - **Does:** Provides interactive serial inspection and diagnostic logging.
 - **Why:** Assists developers in diagnosing serial protocol traffic during board bring-up.
 
+#### `Programs/tools/decode_native_capture.py`
+- **Contains:** Strict chunked native-log decoder and raw/readable/coverage report generation.
+- **Does:** Preserves complete sessions and separate cockpit, external, radio and indication namespaces; suppresses exact repetition in readable output.
+- **Why:** Makes native DCS evidence inspectable without treating observations as verified mappings.
+
+#### `Programs/tools/build_native_crosswalk.py`
+- **Contains:** Conservative static Lua/reference parsing and the pinned 505-control evidence crosswalk.
+- **Does:** Links complete captures, native candidates and optional pinned-release definitions with provenance and per-control follow-up checklists.
+- **Why:** Tracks acquisition separately from identity, command and hardware verification.
+
 #### `Programs/tools/templates/HornetLinkNative.lua.in`
 - **Contains:** Template file used by `generate_hornet_catalog.py` to produce `HornetLinkNative.lua`.
 - **Does:** Defines the Lua export harness that hooks into DCS World's `Export.lua` pipeline.
@@ -440,6 +450,11 @@ Every file in the repository is cataloged below with its contents, purpose, and 
 - **Does:** Gathers cockpit argument and indication states directly from DCS World without DCS-BIOS.
 - **Why:** Native, zero-dependency DCS telemetry export for Protocol v2.
 
+#### `lua/HornetLinkVerify.lua` and `lua/HornetLinkCapture.lua`
+- **Contains:** Read-only focused panel verifier and broad native evidence recorder.
+- **Does:** Records cockpit arguments; the broad recorder also captures indications, telemetry, external candidates and radio frequencies through the DCS log.
+- **Why:** Enables temporary simulator verification without sending cockpit commands. See [native verification workflow and handoff](docs/NATIVE_DCS_VERIFICATION.md).
+
 #### `templates/panels.json`
 - **Contains:** Reference subscription templates for common cockpit panels.
 - **Does:** Defines which addresses and controls belong to specific physical panels.
@@ -553,6 +568,16 @@ Every file in the repository is cataloged below with its contents, purpose, and 
 - **Contains:** Structured test plan cataloging unit, integration, and manual hardware test cases.
 - **Does:** Tracks coverage requirements across protocol parsing, handshaking, delta frames, and bus arbitration.
 - **Why:** Serves as a master checklist for test verification.
+
+#### `tests/test_native_verification.lua` and `tests/test_native_capture.lua`
+- **Contains:** Lua 5.1 mock environments exercising the real read-only recorders.
+- **Does:** Checks callback chaining, throttling, repetition, raw values, segmentation and failure/recovery behavior.
+- **Why:** Tests capture behavior without requiring a running simulator.
+
+#### `tests/test_native_capture.py` and `tests/test_native_crosswalk.py`
+- **Contains:** Standard-library Python tests for transport, reporting and candidate evidence linkage.
+- **Does:** Rejects malformed/incomplete evidence and tests namespace, source precedence, conservative mappings and channel decoding.
+- **Why:** Prevents corrupted evidence or inferred mappings from silently appearing verified.
 
 #### `tests/test_main.cpp`
 - **Contains:** Main entry point and test runner for C++ test execution.

@@ -83,7 +83,10 @@ checks before treating a change as release-ready.
   catalogue entry's DCS device ID, argument, command code and indication field
   is marked `"source": "dcsbios"`. [DCS_DATA_PROVENANCE.md](DCS_DATA_PROVENANCE.md)
   lists every occurrence. Replace them with data read from a DCS install; see
-  future work item 2.
+  future work item 2. [Native verification](NATIVE_DCS_VERIFICATION.md) records the
+  initial Master Arm static check, broad read-only cockpit capture, automated
+  catalogue evidence reports, and live sweep results. Observed output changes
+  are not native input-command verification.
 - `MsfsSource` is a stub. MSFS integration needs a deliberate variable/address
   mapping design as well as simulator API integration; the DCS-BIOS 64 KiB
   address map cannot be assumed to represent MSFS variables.
